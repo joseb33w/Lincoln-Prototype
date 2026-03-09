@@ -1,14 +1,15 @@
 :root {
-  --bg: #0f172a;
-  --panel: #111827;
-  --panel-2: #1f2937;
+  --bg: #050816;
+  --panel: rgba(11, 18, 32, 0.8);
+  --panel-2: rgba(20, 31, 56, 0.9);
   --accent: #8b5cf6;
   --accent-2: #22d3ee;
   --gold: #fbbf24;
-  --danger: #f87171;
+  --danger: #fb7185;
   --success: #34d399;
   --text: #f8fafc;
   --muted: #cbd5e1;
+  --glow: rgba(34, 211, 238, 0.35);
 }
 
 * {
@@ -17,8 +18,12 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
-  background: radial-gradient(circle at top, #1e293b, #020617 70%);
+  background:
+    radial-gradient(circle at top, rgba(139, 92, 246, 0.35), transparent 30%),
+    radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.2), transparent 25%),
+    linear-gradient(180deg, #0b1120, #020617 72%);
   color: var(--text);
 }
 
@@ -27,9 +32,17 @@ button {
 }
 
 .app {
-  max-width: 1200px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  margin: 0 0 8px;
 }
 
 .topbar {
@@ -37,17 +50,18 @@ button {
   justify-content: space-between;
   gap: 16px;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 2.25rem;
 }
 
 .topbar p {
   margin: 6px 0 0;
   color: var(--muted);
+  max-width: 700px;
 }
 
 .topbar-actions {
@@ -61,12 +75,13 @@ button {
   background: linear-gradient(135deg, var(--accent), #6366f1);
   color: white;
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: bold;
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.25);
 }
 
 .topbar .secondary-btn {
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  background: linear-gradient(135deg, #0891b2, #2563eb);
 }
 
 .hud {
@@ -81,16 +96,17 @@ button {
 .battle-log,
 .cards,
 .deck-panel {
-  background: rgba(17, 24, 39, 0.88);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  border-radius: 22px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
 }
 
 .player-panel,
 .center-info,
 .deck-panel {
-  padding: 16px;
+  padding: 18px;
 }
 
 .player-panel h2,
@@ -127,7 +143,7 @@ button {
 }
 
 .fill.enemy {
-  background: linear-gradient(90deg, #fb7185, #ef4444);
+  background: linear-gradient(90deg, var(--danger), #ef4444);
 }
 
 .center-info {
@@ -138,9 +154,10 @@ button {
 }
 
 .timer {
-  font-size: 2.4rem;
+  font-size: 2.5rem;
   font-weight: bold;
   color: var(--gold);
+  text-shadow: 0 0 18px rgba(251, 191, 36, 0.35);
 }
 
 .elixir-wrap {
@@ -180,25 +197,87 @@ button {
 }
 
 .arena-shell {
-  background: rgba(15, 23, 42, 0.75);
-  border-radius: 24px;
+  background: rgba(8, 15, 30, 0.72);
+  border-radius: 28px;
   border: 1px solid rgba(255,255,255,0.08);
   padding: 18px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
 }
 
 .arena {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
-  min-height: 420px;
+  min-height: 460px;
 }
 
 .lane {
   position: relative;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
-  background: linear-gradient(180deg, #14532d 0%, #166534 44%, #0f766e 44%, #0f766e 56%, #166534 56%, #14532d 100%);
-  border: 2px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.4), rgba(17, 24, 39, 0.22)),
+    linear-gradient(180deg, #0f3d2e 0%, #166534 40%, #0f766e 50%, #166534 60%, #0f3d2e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.drop-lane::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.drop-lane.drag-over {
+  box-shadow: 0 0 0 2px rgba(34,211,238,0.45), 0 0 28px rgba(34,211,238,0.25);
+  transform: translateY(-2px);
+}
+
+.lane-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(34,211,238,0.08), transparent 30%, transparent 70%, rgba(139,92,246,0.12));
+  pointer-events: none;
+}
+
+.drop-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  color: #dbeafe;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.center-core {
+  position: absolute;
+  inset: 0;
+}
+
+.core-ring {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 40px rgba(34, 211, 238, 0.08);
+}
+
+.core-ring.ring-2 {
+  width: 300px;
+  height: 300px;
+  border-color: rgba(139, 92, 246, 0.12);
 }
 
 .bridge,
@@ -219,35 +298,36 @@ button {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: 74px;
+  height: 74px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
   font-weight: bold;
   border: 3px solid rgba(255,255,255,0.15);
   transition: transform 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 18px 30px rgba(0,0,0,0.28);
 }
 
 .tower-small.enemy, .king.enemy {
   top: 24px;
-  background: linear-gradient(180deg, #f87171, #991b1b);
+  background: linear-gradient(180deg, #fb7185, #7f1d1d);
 }
 
 .tower-small.player, .king.player {
   bottom: 24px;
-  background: linear-gradient(180deg, #38bdf8, #1d4ed8);
+  background: linear-gradient(180deg, #22d3ee, #1d4ed8);
 }
 
 .king {
-  width: 90px;
-  height: 90px;
+  width: 94px;
+  height: 94px;
 }
 
 .unit {
   position: absolute;
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -256,6 +336,7 @@ button {
   color: white;
   box-shadow: 0 8px 18px rgba(0,0,0,0.35);
   transition: transform 0.14s ease, filter 0.14s ease, opacity 0.18s ease;
+  z-index: 3;
 }
 
 .unit.player {
@@ -266,6 +347,10 @@ button {
   background: linear-gradient(135deg, #fb7185, #dc2626);
 }
 
+.unit.archer {
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.35), 0 8px 24px rgba(0,0,0,0.35);
+}
+
 .unit.attacking {
   transform: translateX(-50%) scale(1.18);
   filter: brightness(1.2);
@@ -274,6 +359,25 @@ button {
 .unit.defeated {
   opacity: 0;
   transform: translateX(-50%) scale(0.65);
+}
+
+.projectile {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  z-index: 4;
+  box-shadow: 0 0 18px currentColor;
+}
+
+.projectile.player {
+  background: radial-gradient(circle at 30% 30%, #fef3c7, #22d3ee 60%, #2563eb);
+  color: #67e8f9;
+}
+
+.projectile.enemy {
+  background: radial-gradient(circle at 30% 30%, #fff1f2, #fb7185 60%, #991b1b);
+  color: #fda4af;
 }
 
 .deck-panel {
@@ -316,8 +420,21 @@ button {
 .card {
   background: linear-gradient(180deg, rgba(139,92,246,0.18), rgba(30,41,59,0.95));
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 14px;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 30px rgba(0,0,0,0.25);
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.card.dragging {
+  opacity: 0.45;
+  transform: scale(0.97);
 }
 
 .card.next-up {
@@ -333,6 +450,13 @@ button {
   margin: 6px 0;
   color: var(--muted);
   min-height: 54px;
+}
+
+.drag-hint {
+  display: inline-block;
+  margin-top: 6px;
+  color: #bfdbfe;
+  font-size: 0.8rem;
 }
 
 .deploy-row {
@@ -360,7 +484,7 @@ button {
   margin-top: 18px;
   padding: 16px;
   min-height: 130px;
-  max-height: 200px;
+  max-height: 220px;
   overflow: auto;
 }
 
@@ -380,15 +504,17 @@ button {
   background: rgba(2, 6, 23, 0.82);
   display: grid;
   place-items: center;
+  z-index: 20;
 }
 
 .overlay-card {
   width: min(90vw, 480px);
-  background: var(--panel);
-  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 24px;
   padding: 24px;
   text-align: center;
   border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
 }
 
 .overlay-card h2 {
@@ -426,6 +552,10 @@ button {
 }
 
 @media (max-width: 640px) {
+  .app {
+    padding: 16px;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: flex-start;
