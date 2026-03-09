@@ -1,4 +1,4 @@
-const cards = [
+const allCards = [
   {
     id: 'knight',
     name: 'Knight',
@@ -6,9 +6,8 @@ const cards = [
     hp: 260,
     damage: 90,
     speed: 1.1,
-    lanePreference: 'left',
     label: 'K',
-    description: 'Balanced melee fighter that pushes one lane.'
+    description: 'Balanced melee fighter that pushes either lane.'
   },
   {
     id: 'archer',
@@ -17,7 +16,6 @@ const cards = [
     hp: 180,
     damage: 70,
     speed: 1.35,
-    lanePreference: 'right',
     label: 'A',
     description: 'Fast ranged unit with low health and steady damage.'
   },
@@ -28,7 +26,6 @@ const cards = [
     hp: 520,
     damage: 140,
     speed: 0.7,
-    lanePreference: 'left',
     label: 'G',
     description: 'Slow tank that can soak damage and crush towers.'
   },
@@ -39,7 +36,6 @@ const cards = [
     hp: 240,
     damage: 180,
     speed: 1,
-    lanePreference: 'right',
     label: 'M',
     description: 'Heavy single-target striker for quick tower pressure.'
   }
@@ -51,6 +47,8 @@ const towerMax = {
   king: 2400
 };
 
+const defaultDeckOrder = ['knight', 'archer', 'giant', 'miniPekka'];
+
 const state = {
   timeLeft: 120,
   elixir: 5,
@@ -58,6 +56,9 @@ const state = {
   units: [],
   nextUnitId: 1,
   over: false,
+  soundEnabled: true,
+  playerDeck: [...defaultDeckOrder],
+  nextDeckIndex: 0,
   playerTowers: { left: 1400, right: 1400, king: 2400 },
   enemyTowers: { left: 1400, right: 1400, king: 2400 }
 };
@@ -69,15 +70,20 @@ const timerEl = document.getElementById('timer');
 const elixirFill = document.getElementById('elixirFill');
 const elixirText = document.getElementById('elixirText');
 const restartBtn = document.getElementById('restartBtn');
+const soundToggleBtn = document.getElementById('soundToggleBtn');
+const statusPill = document.getElementById('statusPill');
+const nextCardLabel = document.getElementById('nextCardLabel');
 
 let gameLoop = null;
 let timerLoop = null;
 let enemyLoop = null;
+let audioCtx = null;
 
 function init() {
   renderCards();
   updateHud();
-  log('Match started. Deploy units into either lane.');
+  setStatus('Battle ready');
+  log('Match started. Choose a card and deploy it into either lane.');
   clearLoops();
   gameLoop = setInterval(tick, 120);
   timerLoop = setInterval(stepTimer, 1000);
@@ -88,41 +94,77 @@ function clearLoops() {
   [gameLoop, timerLoop, enemyLoop].forEach(loop => loop && clearInterval(loop));
 }
 
+function getCard(id) {
+  return allCards.find(card => card.id === id);
+}
+
+function getHandCards() {
+  return state.playerDeck.map(getCard);
+}
+
+function getNextCard() {
+  const nextId = state.playerDeck[state.nextDeckIndex % state.playerDeck.length];
+  return getCard(nextId);
+}
+
+function cycleDeck(playedCardId) {
+  state.playerDeck.shift();
+  state.playerDeck.push(playedCardId);
+  state.nextDeckIndex = 0;
+}
+
 function renderCards() {
   cardsEl.innerHTML = '';
-  cards.forEach(card => {
+  const hand = getHandCards();
+  const nextCard = getNextCard();
+  nextCardLabel.textContent = nextCard ? nextCard.name : '-';
+
+  hand.forEach((card, index) => {
     const cardEl = document.createElement('article');
-    cardEl.className = 'card';
+    cardEl.className = `card ${index === 0 ? 'next-up' : ''}`;
     cardEl.innerHTML = `
       <h3>${card.name}</h3>
       <p>${card.description}</p>
       <p>Cost: <strong>${card.cost}</strong> | HP: <strong>${card.hp}</strong> | DMG: <strong>${card.damage}</strong></p>
-      <button data-card="${card.id}">Deploy to ${card.lanePreference} lane</button>
+      <div class="deploy-row">
+        <button data-card="${card.id}" data-lane="left">Left Lane</button>
+        <button data-card="${card.id}" data-lane="right">Right Lane</button>
+      </div>
     `;
-    cardEl.querySelector('button').addEventListener('click', () => deployPlayer(card.id));
+    cardEl.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => deployPlayer(card.id, btn.dataset.lane));
+    });
     cardsEl.appendChild(cardEl);
   });
 }
 
-function deployPlayer(cardId) {
+function deployPlayer(cardId, lane) {
   if (state.over) return;
-  const card = cards.find(c => c.id === cardId);
+  const card = getCard(cardId);
   if (!card || state.elixir < card.cost) {
+    setStatus('Not enough elixir');
     log('Not enough elixir for that card.');
+    playSound('error');
     return;
   }
+
   state.elixir -= card.cost;
-  spawnUnit('player', card, card.lanePreference);
-  log(`You deployed ${card.name} in the ${card.lanePreference} lane.`);
+  spawnUnit('player', card, lane);
+  cycleDeck(card.id);
+  renderCards();
   updateHud();
+  setStatus(`${card.name} deployed ${lane}`);
+  log(`You deployed ${card.name} in the ${lane} lane.`);
+  playSound('deploy');
 }
 
 function enemyPlay() {
   if (state.over) return;
-  const affordable = cards.filter(card => card.cost <= 6);
+  const affordable = allCards.filter(card => card.cost <= 6);
   const card = affordable[Math.floor(Math.random() * affordable.length)];
   const lane = Math.random() > 0.5 ? 'left' : 'right';
   spawnUnit('enemy', card, lane);
+  setStatus(`Enemy pressure in ${lane} lane`);
   log(`Enemy deployed ${card.name} in the ${lane} lane.`);
 }
 
@@ -149,6 +191,12 @@ function spawnUnit(side, card, lane) {
     attackCooldown: 0
   };
 
+  unitEl.animate([
+    { transform: 'translateX(-50%) scale(0.4)', opacity: 0.1 },
+    { transform: 'translateX(-50%) scale(1.12)', opacity: 1 },
+    { transform: 'translateX(-50%) scale(1)', opacity: 1 }
+  ], { duration: 260, easing: 'ease-out' });
+
   positionUnit(unit);
   state.units.push(unit);
 }
@@ -169,9 +217,12 @@ function tick() {
       if (unit.attackCooldown <= 0) {
         nearest.hp -= unit.damage;
         unit.attackCooldown = 0.9;
+        flashUnit(unit.el);
         flashUnit(nearest.el);
+        playSound('hit');
         if (nearest.hp <= 0) {
           removeUnit(nearest.uid);
+          setStatus(`${getCard(unit.cardId).name} won the duel`);
           log(`${unit.side === 'player' ? 'Your' : 'Enemy'} ${getCard(unit.cardId).name} defeated a unit.`);
         }
       }
@@ -201,22 +252,23 @@ function attackTower(unit) {
   if (unit.attackCooldown <= 0) {
     state[enemyKey][targetLane] = Math.max(0, state[enemyKey][targetLane] - unit.damage);
     unit.attackCooldown = 0.9;
+    flashUnit(unit.el);
     flashTower(unit.side === 'player' ? 'enemy' : 'player', targetLane);
     updateHud();
+    setStatus(`${unit.side === 'player' ? 'Pressing' : 'Defending'} ${targetLane} tower`);
     log(`${unit.side === 'player' ? 'Your' : 'Enemy'} ${getCard(unit.cardId).name} hit the ${targetLane} tower for ${unit.damage}.`);
+    playSound('tower');
   }
 
   positionUnit(unit);
 }
 
-function getCard(id) {
-  return cards.find(card => card.id === id);
-}
-
 function removeUnit(uid) {
   const index = state.units.findIndex(unit => unit && unit.uid === uid);
   if (index >= 0) {
-    state.units[index].el.remove();
+    const unit = state.units[index];
+    unit.el.classList.add('defeated');
+    setTimeout(() => unit.el.remove(), 160);
     state.units.splice(index, 1);
   }
 }
@@ -238,8 +290,11 @@ function updateHud() {
   updateTowerBar('enemy', 'right');
   updateTowerBar('enemy', 'king');
 
-  document.querySelectorAll('.card button').forEach((btn, index) => {
-    btn.disabled = state.elixir < cards[index].cost || state.over;
+  const hand = getHandCards();
+  document.querySelectorAll('.card').forEach((cardEl, index) => {
+    cardEl.querySelectorAll('button').forEach(btn => {
+      btn.disabled = state.elixir < hand[index].cost || state.over;
+    });
   });
 }
 
@@ -267,8 +322,10 @@ function stepTimer() {
 
 function checkWin() {
   if (state.enemyTowers.king <= 0) {
+    playSound('victory');
     endGame('Victory! You destroyed the enemy king tower.');
   } else if (state.playerTowers.king <= 0) {
+    playSound('defeat');
     endGame('Defeat! Your king tower has fallen.');
   }
 }
@@ -277,8 +334,10 @@ function finishMatch() {
   const playerScore = Object.values(state.enemyTowers).reduce((sum, hp) => sum + hp, 0);
   const enemyScore = Object.values(state.playerTowers).reduce((sum, hp) => sum + hp, 0);
   if (playerScore < enemyScore) {
+    playSound('victory');
     endGame('Victory on damage! You dealt more total damage.');
   } else if (enemyScore < playerScore) {
+    playSound('defeat');
     endGame('Defeat on damage! The enemy dealt more total damage.');
   } else {
     endGame('Draw! Both sides finished even.');
@@ -289,6 +348,7 @@ function endGame(message) {
   state.over = true;
   clearLoops();
   updateHud();
+  setStatus(message);
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
@@ -311,21 +371,28 @@ function resetGame() {
     units: [],
     nextUnitId: 1,
     over: false,
+    soundEnabled: state.soundEnabled,
+    playerDeck: [...defaultDeckOrder],
+    nextDeckIndex: 0,
     playerTowers: { left: 1400, right: 1400, king: 2400 },
     enemyTowers: { left: 1400, right: 1400, king: 2400 }
   });
   battleLog.innerHTML = '';
+  renderCards();
   updateHud();
+  setStatus('New match started');
   log('New match started. Good luck!');
   init();
 }
 
 function flashUnit(el) {
+  el.classList.add('attacking');
   el.animate([
     { transform: 'translateX(-50%) scale(1)' },
-    { transform: 'translateX(-50%) scale(1.18)' },
+    { transform: 'translateX(-50%) scale(1.22)' },
     { transform: 'translateX(-50%) scale(1)' }
   ], { duration: 220 });
+  setTimeout(() => el.classList.remove('attacking'), 180);
 }
 
 function flashTower(side, tower) {
@@ -336,11 +403,15 @@ function flashTower(side, tower) {
   });
   towers.forEach(towerEl => {
     towerEl.animate([
-      { filter: 'brightness(1)' },
-      { filter: 'brightness(1.8)' },
-      { filter: 'brightness(1)' }
+      { filter: 'brightness(1)', transform: 'translateX(-50%) scale(1)' },
+      { filter: 'brightness(1.8)', transform: 'translateX(-50%) scale(1.07)' },
+      { filter: 'brightness(1)', transform: 'translateX(-50%) scale(1)' }
     ], { duration: 240 });
   });
+}
+
+function setStatus(message) {
+  statusPill.textContent = message;
 }
 
 function log(message) {
@@ -356,6 +427,67 @@ function formatTime(seconds) {
   return `${mins}:${secs}`;
 }
 
+function ensureAudio() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioCtx = new AudioContextClass();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.03) {
+  if (!state.soundEnabled) return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.value = volume;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playSound(kind) {
+  if (!state.soundEnabled) return;
+  if (kind === 'deploy') {
+    playTone(440, 0.08, 'square', 0.04);
+    setTimeout(() => playTone(660, 0.08, 'square', 0.03), 60);
+  } else if (kind === 'hit') {
+    playTone(180, 0.06, 'sawtooth', 0.03);
+  } else if (kind === 'tower') {
+    playTone(140, 0.12, 'triangle', 0.05);
+  } else if (kind === 'victory') {
+    playTone(523, 0.12, 'triangle', 0.04);
+    setTimeout(() => playTone(659, 0.12, 'triangle', 0.04), 120);
+    setTimeout(() => playTone(784, 0.18, 'triangle', 0.05), 240);
+  } else if (kind === 'defeat') {
+    playTone(300, 0.12, 'sawtooth', 0.04);
+    setTimeout(() => playTone(220, 0.18, 'sawtooth', 0.04), 120);
+  } else if (kind === 'error') {
+    playTone(170, 0.08, 'square', 0.025);
+  }
+}
+
+soundToggleBtn.addEventListener('click', () => {
+  state.soundEnabled = !state.soundEnabled;
+  soundToggleBtn.textContent = `Sound: ${state.soundEnabled ? 'On' : 'Off'}`;
+  if (state.soundEnabled) {
+    playTone(520, 0.08, 'triangle', 0.03);
+  }
+});
+
 restartBtn.addEventListener('click', resetGame);
+
+document.body.addEventListener('click', () => {
+  ensureAudio();
+}, { once: true });
 
 init();
