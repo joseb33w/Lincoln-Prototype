@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Prototype Arena Experience</p>
         <h1>Lincoln Prototype</h1>
-        <p>Drag cards into glowing lanes, pressure towers, and outplay the enemy in a stylized neon battlefield.</p>
+        <p>Drag or tap cards into glowing lanes, trigger special abilities, and overwhelm the enemy in a cinematic neon battlefield.</p>
       </div>
       <div class="topbar-actions">
         <button id="soundToggleBtn" class="secondary-btn">Sound: On</button>
@@ -36,7 +36,7 @@
           <strong id="elixirText">5 / 10</strong>
         </div>
         <div class="status-pill" id="statusPill">Battle ready</div>
-        <div class="tip">Drag a card into the left or right lane. Archer now fires real projectiles from range.</div>
+        <div class="tip">Desktop: drag cards into a lane. Mobile: tap a card, then tap a glowing lane to deploy with touch support.</div>
       </div>
 
       <div class="player-panel">
@@ -51,7 +51,8 @@
       <div class="arena" id="arena">
         <div class="lane left-lane drop-lane" data-lane="left">
           <div class="lane-glow"></div>
-          <div class="drop-banner">Drop Here</div>
+          <div class="drop-banner">Left Lane</div>
+          <div class="touch-drop-hint">Tap selected card to deploy here</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="left">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="left">PT</div>
@@ -67,7 +68,8 @@
         </div>
         <div class="lane right-lane drop-lane" data-lane="right">
           <div class="lane-glow"></div>
-          <div class="drop-banner">Drop Here</div>
+          <div class="drop-banner">Right Lane</div>
+          <div class="touch-drop-hint">Tap selected card to deploy here</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="right">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="right">PT</div>
@@ -78,7 +80,7 @@
     <section class="deck-panel">
       <div>
         <h2>Your Hand</h2>
-        <p>Click for quick deploy or drag cards straight into a glowing lane.</p>
+        <p>Drag for desktop precision, or tap-select a card and tap a lane on touch devices. Special units now stun, splash, and dash.</p>
       </div>
       <div class="next-card-box">
         <span>Next Card</span>
