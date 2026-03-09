@@ -50,6 +50,12 @@ button {
   color: var(--muted);
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .topbar button {
   border: none;
   background: linear-gradient(135deg, var(--accent), #6366f1);
@@ -57,6 +63,10 @@ button {
   padding: 12px 18px;
   border-radius: 12px;
   font-weight: bold;
+}
+
+.topbar .secondary-btn {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
 }
 
 .hud {
@@ -69,7 +79,8 @@ button {
 .player-panel,
 .center-info,
 .battle-log,
-.cards {
+.cards,
+.deck-panel {
   background: rgba(17, 24, 39, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
@@ -77,12 +88,14 @@ button {
 }
 
 .player-panel,
-.center-info {
+.center-info,
+.deck-panel {
   padding: 16px;
 }
 
 .player-panel h2,
-.center-info h2 {
+.center-info h2,
+.deck-panel h2 {
   margin-top: 0;
 }
 
@@ -150,6 +163,17 @@ button {
   transition: width 0.2s ease;
 }
 
+.status-pill {
+  margin: 6px auto 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.14);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: #dbeafe;
+  font-weight: bold;
+  width: fit-content;
+}
+
 .tip {
   color: var(--muted);
   font-size: 0.95rem;
@@ -202,6 +226,7 @@ button {
   place-items: center;
   font-weight: bold;
   border: 3px solid rgba(255,255,255,0.15);
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
 .tower-small.enemy, .king.enemy {
@@ -230,6 +255,7 @@ button {
   font-weight: bold;
   color: white;
   box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+  transition: transform 0.14s ease, filter 0.14s ease, opacity 0.18s ease;
 }
 
 .unit.player {
@@ -238,6 +264,45 @@ button {
 
 .unit.enemy {
   background: linear-gradient(135deg, #fb7185, #dc2626);
+}
+
+.unit.attacking {
+  transform: translateX(-50%) scale(1.18);
+  filter: brightness(1.2);
+}
+
+.unit.defeated {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.65);
+}
+
+.deck-panel {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.deck-panel p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.next-card-box {
+  min-width: 180px;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.14), rgba(30, 41, 59, 0.95));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.next-card-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 6px;
 }
 
 .cards {
@@ -255,6 +320,11 @@ button {
   padding: 14px;
 }
 
+.card.next-up {
+  outline: 2px solid rgba(251, 191, 36, 0.8);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
+}
+
 .card h3 {
   margin: 0 0 8px;
 }
@@ -263,6 +333,13 @@ button {
   margin: 6px 0;
   color: var(--muted);
   min-height: 54px;
+}
+
+.deploy-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .card button {
@@ -341,6 +418,11 @@ button {
   .cards {
     grid-template-columns: 1fr 1fr;
   }
+
+  .deck-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 @media (max-width: 640px) {
@@ -351,5 +433,13 @@ button {
 
   .cards {
     grid-template-columns: 1fr;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-actions button {
+    flex: 1;
   }
 }
