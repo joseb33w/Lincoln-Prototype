@@ -1,49 +1,54 @@
 # Lincoln Prototype
 
-A simple Clash Royale-inspired browser game prototype built with HTML, CSS, and JavaScript.
+A stylish browser-based lane battle prototype inspired by real-time card arena games, built with HTML, CSS, and vanilla JavaScript.
 
 ## How to Play
 
 - Open `index.html` in a browser.
 - Build elixir over time.
-- Choose a card from your hand.
-- Deploy units into the left or right lane.
-- Your units march toward enemy towers and attack automatically.
-- Defend your towers while destroying the enemy towers before time runs out.
+- Drag a card into the left or right lane, or use the quick deploy buttons.
+- Units march toward enemy towers and attack automatically.
+- Archers fire ranged projectiles from a distance.
+- Defend your towers while destroying the enemy fortress before time runs out.
 
 ## Features
 
-- Clash Royale-style lane combat
+- Clash Royale-inspired lane combat
 - Elixir resource system
 - Four playable unit cards
+- Drag-and-drop card deployment
+- Quick left/right lane deploy buttons
+- Archer projectile attacks
 - Enemy auto-spawning
 - Tower health bars
 - Match timer
 - Win/lose game state
 - Restart button
+- Sound effects with toggle control
 - Battle log for match events
+- Neon cyber-fantasy arena styling
 
 ## Controls
 
-- Click a card button to deploy that unit.
+- Drag a card onto a glowing lane to deploy it.
+- Or click the left/right deploy buttons on each card.
 - Each card spends elixir based on its cost.
 - Units automatically move and attack once deployed.
 - Click **Restart Match** to begin a fresh round.
+- Click **Sound: On/Off** to toggle audio.
 
 ## Files
 
-- `index.html` - game structure and UI
-- `styles.css` - layout, arena styling, cards, and effects
-- `app.js` - gameplay logic, spawning, combat, and game state
+- `index.html` - game structure and HUD
+- `styles.css` - arena visuals, animations, cards, and effects
+- `app.js` - gameplay logic, drag-and-drop, combat, projectiles, sounds, and game state
 
 ## Future Ideas
 
-- Drag-and-drop card deployment
-- Projectile attacks for ranged units
-- Sound effects and music
+- Touch-optimized drag controls for mobile
 - More unit types and spells
 - Smarter enemy AI
-- Mobile-friendly controls
+- Special abilities and status effects
 - GitHub Pages deployment
 
 ## Tech Stack
