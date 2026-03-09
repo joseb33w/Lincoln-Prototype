@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lincoln Prototype - Arena Duel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>Lincoln Prototype</h1>
+        <p>Simple lane battle inspired by real-time card arena games</p>
+      </div>
+      <button id="restartBtn">Restart Match</button>
+    </header>
+
+    <section class="hud">
+      <div class="player-panel enemy-panel">
+        <h2>Enemy King</h2>
+        <div class="health-row"><span>Left Tower</span><div class="bar"><div id="enemyLeftHp" class="fill enemy"></div></div><strong id="enemyLeftText">1400</strong></div>
+        <div class="health-row"><span>King Tower</span><div class="bar"><div id="enemyKingHp" class="fill enemy"></div></div><strong id="enemyKingText">2400</strong></div>
+        <div class="health-row"><span>Right Tower</span><div class="bar"><div id="enemyRightHp" class="fill enemy"></div></div><strong id="enemyRightText">1400</strong></div>
+      </div>
+
+      <div class="center-info">
+        <div class="timer" id="timer">02:00</div>
+        <div class="elixir-wrap">
+          <span>Elixir</span>
+          <div class="elixir-bar"><div id="elixirFill"></div></div>
+          <strong id="elixirText">5 / 10</strong>
+        </div>
+        <div class="tip">Play cards into either lane and destroy the enemy king tower.</div>
+      </div>
+
+      <div class="player-panel">
+        <h2>Your Towers</h2>
+        <div class="health-row"><span>Left Tower</span><div class="bar"><div id="playerLeftHp" class="fill player"></div></div><strong id="playerLeftText">1400</strong></div>
+        <div class="health-row"><span>King Tower</span><div class="bar"><div id="playerKingHp" class="fill player"></div></div><strong id="playerKingText">2400</strong></div>
+        <div class="health-row"><span>Right Tower</span><div class="bar"><div id="playerRightHp" class="fill player"></div></div><strong id="playerRightText">1400</strong></div>
+      </div>
+    </section>
+
+    <main class="arena-shell">
+      <div class="arena" id="arena">
+        <div class="lane left-lane" data-lane="left">
+          <div class="tower enemy tower-small" data-side="enemy" data-target="left">ET</div>
+          <div class="bridge">Bridge</div>
+          <div class="tower player tower-small" data-side="player" data-target="left">PT</div>
+        </div>
+        <div class="lane center-lane">
+          <div class="tower enemy king" data-side="enemy" data-target="king">EK</div>
+          <div class="river">River</div>
+          <div class="tower player king" data-side="player" data-target="king">PK</div>
+        </div>
+        <div class="lane right-lane" data-lane="right">
+          <div class="tower enemy tower-small" data-side="enemy" data-target="right">ET</div>
+          <div class="bridge">Bridge</div>
+          <div class="tower player tower-small" data-side="player" data-target="right">PT</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="cards" id="cards"></section>
+    <section class="battle-log" id="battleLog"></section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
