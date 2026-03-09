@@ -23,6 +23,13 @@ A simple Clash Royale-inspired browser game prototype built with HTML, CSS, and 
 - Restart button
 - Battle log for match events
 
+## Controls
+
+- Click a card button to deploy that unit.
+- Each card spends elixir based on its cost.
+- Units automatically move and attack once deployed.
+- Click **Restart Match** to begin a fresh round.
+
 ## Files
 
 - `index.html` - game structure and UI
@@ -37,6 +44,7 @@ A simple Clash Royale-inspired browser game prototype built with HTML, CSS, and 
 - More unit types and spells
 - Smarter enemy AI
 - Mobile-friendly controls
+- GitHub Pages deployment
 
 ## Tech Stack
 
