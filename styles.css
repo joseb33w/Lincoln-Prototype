@@ -23,6 +23,7 @@ body {
   background:
     radial-gradient(circle at top, rgba(139, 92, 246, 0.35), transparent 30%),
     radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.2), transparent 25%),
+    radial-gradient(circle at 50% 100%, rgba(251, 191, 36, 0.08), transparent 30%),
     linear-gradient(180deg, #0b1120, #020617 72%);
   color: var(--text);
 }
@@ -56,6 +57,7 @@ button {
 .topbar h1 {
   margin: 0;
   font-size: 2.25rem;
+  text-shadow: 0 0 24px rgba(139, 92, 246, 0.28);
 }
 
 .topbar p {
@@ -201,7 +203,7 @@ button {
   border-radius: 28px;
   border: 1px solid rgba(255,255,255,0.08);
   padding: 18px;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 0 60px rgba(34, 211, 238, 0.05);
 }
 
 .arena {
@@ -230,7 +232,8 @@ button {
   pointer-events: none;
 }
 
-.drop-lane.drag-over {
+.drop-lane.drag-over,
+.drop-lane.touch-target {
   box-shadow: 0 0 0 2px rgba(34,211,238,0.45), 0 0 28px rgba(34,211,238,0.25);
   transform: translateY(-2px);
 }
@@ -255,6 +258,19 @@ button {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.touch-drop-hint {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  color: rgba(219, 234, 254, 0.8);
+  background: rgba(15, 23, 42, 0.45);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
 .center-core {
@@ -351,6 +367,16 @@ button {
   box-shadow: 0 0 0 2px rgba(251,191,36,0.35), 0 8px 24px rgba(0,0,0,0.35);
 }
 
+.unit.giant {
+  width: 62px;
+  height: 62px;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.35), 0 10px 28px rgba(0,0,0,0.38);
+}
+
+.unit.miniPekka {
+  box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.35), 0 8px 24px rgba(0,0,0,0.35);
+}
+
 .unit.attacking {
   transform: translateX(-50%) scale(1.18);
   filter: brightness(1.2);
@@ -359,6 +385,31 @@ button {
 .unit.defeated {
   opacity: 0;
   transform: translateX(-50%) scale(0.65);
+}
+
+.unit.stunned {
+  filter: grayscale(0.2) brightness(1.3);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55), 0 0 22px rgba(251, 191, 36, 0.4);
+}
+
+.hp-shell {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255,255,255,0.14);
+  overflow: hidden;
+}
+
+.hp-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #34d399, #22d3ee);
+  transition: width 0.18s ease;
 }
 
 .projectile {
@@ -378,6 +429,12 @@ button {
 .projectile.enemy {
   background: radial-gradient(circle at 30% 30%, #fff1f2, #fb7185 60%, #991b1b);
   color: #fda4af;
+}
+
+.projectile.splash {
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 0 24px rgba(52, 211, 153, 0.65);
 }
 
 .deck-panel {
@@ -437,6 +494,11 @@ button {
   transform: scale(0.97);
 }
 
+.card.selected-touch {
+  outline: 2px solid rgba(34, 211, 238, 0.85);
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.14);
+}
+
 .card.next-up {
   outline: 2px solid rgba(251, 191, 36, 0.8);
   box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
@@ -457,6 +519,17 @@ button {
   margin-top: 6px;
   color: #bfdbfe;
   font-size: 0.8rem;
+}
+
+.ability-tag {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e0f2fe;
 }
 
 .deploy-row {
@@ -553,23 +626,24 @@ button {
 
 @media (max-width: 640px) {
   .app {
-    padding: 16px;
+    padding: 14px;
   }
 
   .topbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .cards {
     grid-template-columns: 1fr;
   }
 
-  .topbar-actions {
-    width: 100%;
+  .health-row {
+    grid-template-columns: 78px 1fr 42px;
+    font-size: 0.85rem;
   }
 
-  .topbar-actions button {
-    flex: 1;
+  .touch-drop-hint {
+    font-size: 0.65rem;
   }
 }
