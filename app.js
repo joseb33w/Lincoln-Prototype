@@ -10,7 +10,9 @@ const allCards = [
     range: 10,
     attackRate: 0.9,
     projectile: false,
-    description: 'Balanced melee fighter that pushes either lane.'
+    abilityLabel: 'Shock stun',
+    stunDuration: 0.9,
+    description: 'Balanced melee fighter that briefly stuns enemies on hit.'
   },
   {
     id: 'archer',
@@ -24,7 +26,8 @@ const allCards = [
     attackRate: 1.05,
     projectile: true,
     projectileSpeed: 3.4,
-    description: 'Fast ranged unit that fires glowing arrows from distance.'
+    description: 'Fast ranged unit that fires glowing arrows from distance.',
+    abilityLabel: 'True projectile shots'
   },
   {
     id: 'giant',
@@ -34,10 +37,13 @@ const allCards = [
     damage: 140,
     speed: 0.7,
     label: 'G',
-    range: 10,
+    range: 12,
     attackRate: 1.15,
-    projectile: false,
-    description: 'Slow tank that can soak damage and crush towers.'
+    projectile: true,
+    projectileSpeed: 2.6,
+    splashRadius: 16,
+    description: 'Slow tank that hurls splash blasts to crush clustered enemies.',
+    abilityLabel: 'Splash blast'
   },
   {
     id: 'miniPekka',
@@ -50,7 +56,10 @@ const allCards = [
     range: 10,
     attackRate: 0.95,
     projectile: false,
-    description: 'Heavy single-target striker for quick tower pressure.'
+    dashRange: 24,
+    dashSpeed: 10,
+    description: 'Heavy striker that dashes into close targets for burst pressure.',
+    abilityLabel: 'Dash strike'
   }
 ];
 
@@ -75,6 +84,7 @@ const state = {
   playerDeck: [...defaultDeckOrder],
   nextDeckIndex: 0,
   draggingCardId: null,
+  selectedTouchCardId: null,
   playerTowers: { left: 1400, right: 1400, king: 2400 },
   enemyTowers: { left: 1400, right: 1400, king: 2400 }
 };
@@ -101,7 +111,7 @@ function init() {
   renderCards();
   updateHud();
   setStatus('Battle ready');
-  log('Match started. Drag a card into a lane or use the quick deploy buttons.');
+  log('Match started. Drag a card into a lane or tap-select one on mobile, then tap a glowing lane.');
   clearLoops();
   gameLoop = setInterval(tick, 120);
   timerLoop = setInterval(stepTimer, 1000);
@@ -146,12 +156,31 @@ function bindLaneDrops() {
       event.preventDefault();
       lane.classList.remove('drag-over');
       const cardId = event.dataTransfer.getData('text/plain') || state.draggingCardId;
-      if (cardId) {
-        deployPlayer(cardId, lane.dataset.lane);
-      }
-      state.draggingCardId = null;
+      if (cardId) deployPlayer(cardId, lane.dataset.lane);
+      clearTouchSelection();
       document.querySelectorAll('.card.dragging').forEach(card => card.classList.remove('dragging'));
     });
+
+    lane.addEventListener('click', () => {
+      if (state.selectedTouchCardId) {
+        deployPlayer(state.selectedTouchCardId, lane.dataset.lane);
+      }
+    });
+
+    lane.addEventListener('touchstart', event => {
+      if (state.selectedTouchCardId) {
+        event.preventDefault();
+        lane.classList.add('touch-target');
+      }
+    }, { passive: false });
+
+    lane.addEventListener('touchend', event => {
+      if (state.selectedTouchCardId) {
+        event.preventDefault();
+        deployPlayer(state.selectedTouchCardId, lane.dataset.lane);
+      }
+      lane.classList.remove('touch-target');
+    }, { passive: false });
   });
 }
 
@@ -163,7 +192,7 @@ function renderCards() {
 
   hand.forEach((card, index) => {
     const cardEl = document.createElement('article');
-    cardEl.className = `card ${index === 0 ? 'next-up' : ''}`;
+    cardEl.className = `card ${index === 0 ? 'next-up' : ''} ${state.selectedTouchCardId === card.id ? 'selected-touch' : ''}`;
     cardEl.draggable = true;
     cardEl.dataset.card = card.id;
     cardEl.innerHTML = `
@@ -171,6 +200,7 @@ function renderCards() {
       <p>${card.description}</p>
       <p>Cost: <strong>${card.cost}</strong> | HP: <strong>${card.hp}</strong> | DMG: <strong>${card.damage}</strong></p>
       <span class="drag-hint">Drag to a glowing lane</span>
+      <span class="ability-tag">${card.abilityLabel || 'Arena unit'}</span>
       <div class="deploy-row">
         <button data-card="${card.id}" data-lane="left">Left Lane</button>
         <button data-card="${card.id}" data-lane="right">Right Lane</button>
@@ -191,12 +221,34 @@ function renderCards() {
       dropLanes.forEach(lane => lane.classList.remove('drag-over'));
     });
 
+    cardEl.addEventListener('click', event => {
+      if (event.target.tagName === 'BUTTON') return;
+      toggleTouchSelection(card.id);
+    });
+
+    cardEl.addEventListener('touchstart', () => {
+      toggleTouchSelection(card.id);
+    }, { passive: true });
+
     cardEl.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => deployPlayer(card.id, btn.dataset.lane));
     });
 
     cardsEl.appendChild(cardEl);
   });
+}
+
+function toggleTouchSelection(cardId) {
+  state.selectedTouchCardId = state.selectedTouchCardId === cardId ? null : cardId;
+  const card = getCard(state.selectedTouchCardId);
+  setStatus(card ? `${card.name} selected - tap a lane` : 'Battle ready');
+  dropLanes.forEach(lane => lane.classList.toggle('touch-target', !!state.selectedTouchCardId));
+  renderCards();
+}
+
+function clearTouchSelection() {
+  state.selectedTouchCardId = null;
+  dropLanes.forEach(lane => lane.classList.remove('touch-target'));
 }
 
 function deployPlayer(cardId, lane) {
@@ -212,6 +264,7 @@ function deployPlayer(cardId, lane) {
   state.elixir -= card.cost;
   spawnUnit('player', card, lane);
   cycleDeck(card.id);
+  clearTouchSelection();
   renderCards();
   updateHud();
   setStatus(`${card.name} deployed ${lane}`);
@@ -232,8 +285,15 @@ function enemyPlay() {
 function spawnUnit(side, card, lane) {
   const laneEl = document.querySelector(`.${lane}-lane`) || document.querySelector('.center-lane');
   const unitEl = document.createElement('div');
-  unitEl.className = `unit ${side} ${card.id === 'archer' ? 'archer' : ''}`;
+  unitEl.className = `unit ${side} ${card.id === 'archer' ? 'archer' : ''} ${card.id}`;
   unitEl.textContent = card.label;
+
+  const hpShell = document.createElement('div');
+  hpShell.className = 'hp-shell';
+  const hpFill = document.createElement('div');
+  hpFill.className = 'hp-fill';
+  hpShell.appendChild(hpFill);
+  unitEl.appendChild(hpShell);
   laneEl.appendChild(unitEl);
 
   const unit = {
@@ -249,11 +309,17 @@ function spawnUnit(side, card, lane) {
     projectile: card.projectile,
     projectileSpeed: card.projectileSpeed || 0,
     attackRate: card.attackRate,
+    splashRadius: card.splashRadius || 0,
+    stunDuration: card.stunDuration || 0,
+    dashRange: card.dashRange || 0,
+    dashSpeed: card.dashSpeed || 0,
     x: 50,
     y: side === 'player' ? 86 : 14,
     target: lane,
     el: unitEl,
-    attackCooldown: 0
+    hpFill,
+    attackCooldown: 0,
+    stunnedFor: 0
   };
 
   unitEl.animate([
@@ -263,6 +329,7 @@ function spawnUnit(side, card, lane) {
   ], { duration: 260, easing: 'ease-out' });
 
   positionUnit(unit);
+  updateUnitHp(unit);
   state.units.push(unit);
 }
 
@@ -273,26 +340,36 @@ function tick() {
   updateHud();
 
   state.units.forEach(unit => {
+    if (!unit) return;
     if (unit.attackCooldown > 0) unit.attackCooldown -= 0.12;
+    if (unit.stunnedFor > 0) {
+      unit.stunnedFor -= 0.12;
+      unit.el.classList.add('stunned');
+      if (unit.stunnedFor <= 0) unit.el.classList.remove('stunned');
+      return;
+    }
 
     const opponents = state.units
-      .filter(other => other.side !== unit.side && other.lane === unit.lane)
+      .filter(other => other && other.side !== unit.side && other.lane === unit.lane)
       .sort((a, b) => Math.abs(a.y - unit.y) - Math.abs(b.y - unit.y));
     const nearest = opponents[0];
     const distanceToUnit = nearest ? Math.abs(nearest.y - unit.y) : Infinity;
 
     if (nearest && distanceToUnit <= unit.range) {
-      if (unit.attackCooldown <= 0) {
-        performAttack(unit, nearest);
+      if (unit.cardId === 'miniPekka' && unit.attackCooldown <= 0 && distanceToUnit <= unit.dashRange && distanceToUnit > 8) {
+        const direction = unit.side === 'player' ? -1 : 1;
+        unit.y += direction * unit.dashSpeed;
+        unit.y = Math.max(12, Math.min(88, unit.y));
+        positionUnit(unit);
+        setStatus('Mini Bot dash strike');
       }
+      if (unit.attackCooldown <= 0) performAttack(unit, nearest);
       return;
     }
 
     const towerTarget = getTowerTarget(unit);
     if (towerTarget && towerTarget.inRange) {
-      if (unit.attackCooldown <= 0) {
-        attackTower(unit, towerTarget.key);
-      }
+      if (unit.attackCooldown <= 0) attackTower(unit, towerTarget.key);
       return;
     }
 
@@ -318,13 +395,25 @@ function performAttack(unit, target) {
     return;
   }
 
-  target.hp -= unit.damage;
-  flashUnit(target.el);
+  applyDamageToUnit(target, unit.damage, unit);
+  if (unit.stunDuration) {
+    target.stunnedFor = Math.max(target.stunnedFor || 0, unit.stunDuration);
+    target.el.classList.add('stunned');
+  }
   playSound('hit');
+}
+
+function applyDamageToUnit(target, amount, attacker) {
+  if (!target) return;
+  target.hp -= amount;
+  flashUnit(target.el);
+  updateUnitHp(target);
   if (target.hp <= 0) {
     removeUnit(target.uid);
-    setStatus(`${getCard(unit.cardId).name} won the duel`);
-    log(`${unit.side === 'player' ? 'Your' : 'Enemy'} ${getCard(unit.cardId).name} defeated a unit.`);
+    if (attacker) {
+      setStatus(`${getCard(attacker.cardId).name} won the duel`);
+      log(`${attacker.side === 'player' ? 'Your' : 'Enemy'} ${getCard(attacker.cardId).name} defeated a unit.`);
+    }
   }
 }
 
@@ -335,10 +424,7 @@ function getTowerTarget(unit) {
     ? (preferred === 'king' ? 12 : 14)
     : (preferred === 'king' ? 88 : 86);
   const distance = Math.abs(unit.y - towerY);
-  return {
-    key: preferred,
-    inRange: distance <= unit.range
-  };
+  return { key: preferred, inRange: distance <= unit.range };
 }
 
 function attackTower(unit, forcedTarget) {
@@ -353,35 +439,40 @@ function attackTower(unit, forcedTarget) {
     return;
   }
 
-  state[enemyKey][targetLane] = Math.max(0, state[enemyKey][targetLane] - unit.damage);
-  flashUnit(unit.el);
-  flashTower(unit.side === 'player' ? 'enemy' : 'player', targetLane);
+  damageTower(unit, targetLane, unit.damage);
+}
+
+function damageTower(unit, targetLane, amount) {
+  const enemyKey = unit.side === 'player' ? 'enemyTowers' : 'playerTowers';
+  state[enemyKey][targetLane] = Math.max(0, state[enemyKey][targetLane] - amount);
+  flashUnit(document.querySelector(`.tower[data-side="${unit.side === 'player' ? 'enemy' : 'player'}"][data-target="${targetLane}"]`));
   updateHud();
-  setStatus(`${unit.side === 'player' ? 'Pressing' : 'Defending'} ${targetLane} tower`);
-  log(`${unit.side === 'player' ? 'Your' : 'Enemy'} ${getCard(unit.cardId).name} hit the ${targetLane} tower for ${unit.damage}.`);
   playSound('tower');
+  if (state[enemyKey][targetLane] === 0) {
+    log(`${unit.side === 'player' ? 'Enemy' : 'Your'} ${targetLane} tower has fallen.`);
+  }
 }
 
 function fireProjectile(unit, targetRef, targetType) {
-  const laneEl = document.querySelector(`.${unit.lane}-lane`);
-  if (!laneEl) return;
-
+  const laneEl = document.querySelector(`.${unit.lane}-lane`) || document.querySelector('.center-lane');
   const projectileEl = document.createElement('div');
-  projectileEl.className = `projectile ${unit.side}`;
+  projectileEl.className = `projectile ${unit.side} ${unit.splashRadius ? 'splash' : ''}`;
   laneEl.appendChild(projectileEl);
 
   const projectile = {
     id: state.nextProjectileId++,
     side: unit.side,
     lane: unit.lane,
-    damage: unit.damage,
+    y: unit.y,
+    x: 50,
     speed: unit.projectileSpeed || 3,
-    y: unit.side === 'player' ? unit.y - 4 : unit.y + 4,
-    x: unit.x,
+    damage: unit.damage,
     targetRef,
     targetType,
-    el: projectileEl,
-    sourceCardId: unit.cardId
+    splashRadius: unit.splashRadius || 0,
+    stunDuration: unit.stunDuration || 0,
+    sourceCardId: unit.cardId,
+    el: projectileEl
   };
 
   positionProjectile(projectile);
@@ -392,55 +483,46 @@ function updateProjectiles() {
   state.projectiles = state.projectiles.filter(projectile => {
     const direction = projectile.side === 'player' ? -1 : 1;
     projectile.y += direction * projectile.speed;
+    positionProjectile(projectile);
 
-    let hit = false;
     if (projectile.targetType === 'unit') {
-      const target = state.units.find(unit => unit.uid === projectile.targetRef);
+      const target = state.units.find(unit => unit && unit.uid === projectile.targetRef);
       if (!target) {
         projectile.el.remove();
         return false;
       }
-      if (Math.abs(projectile.y - target.y) < 5) {
-        target.hp -= projectile.damage;
-        flashUnit(target.el);
-        hit = true;
-        if (target.hp <= 0) {
-          removeUnit(target.uid);
-          log(`${projectile.side === 'player' ? 'Your' : 'Enemy'} Archer landed a finishing shot.`);
+      if (Math.abs(target.y - projectile.y) <= 4) {
+        applyDamageToUnit(target, projectile.damage, { cardId: projectile.sourceCardId, side: projectile.side });
+        if (projectile.stunDuration) {
+          target.stunnedFor = Math.max(target.stunnedFor || 0, projectile.stunDuration);
+          target.el.classList.add('stunned');
         }
+        if (projectile.splashRadius) {
+          state.units
+            .filter(unit => unit && unit.side !== projectile.side && unit.lane === projectile.lane && Math.abs(unit.y - target.y) <= projectile.splashRadius && unit.uid !== target.uid)
+            .forEach(unit => applyDamageToUnit(unit, Math.round(projectile.damage * 0.55), { cardId: projectile.sourceCardId, side: projectile.side }));
+        }
+        projectile.el.remove();
+        return false;
       }
     } else {
-      const enemyKey = projectile.side === 'player' ? 'enemyTowers' : 'playerTowers';
       const towerY = projectile.side === 'player'
         ? (projectile.targetRef === 'king' ? 12 : 14)
         : (projectile.targetRef === 'king' ? 88 : 86);
-      if (Math.abs(projectile.y - towerY) < 5) {
-        state[enemyKey][projectile.targetRef] = Math.max(0, state[enemyKey][projectile.targetRef] - projectile.damage);
-        flashTower(projectile.side === 'player' ? 'enemy' : 'player', projectile.targetRef);
-        updateHud();
-        log(`${projectile.side === 'player' ? 'Your' : 'Enemy'} Archer hit the ${projectile.targetRef} tower for ${projectile.damage}.`);
-        hit = true;
+      if (Math.abs(towerY - projectile.y) <= 4) {
+        damageTower({ side: projectile.side }, projectile.targetRef, projectile.damage);
+        projectile.el.remove();
+        return false;
       }
     }
 
-    if (hit || projectile.y < 4 || projectile.y > 96) {
+    if (projectile.y < 8 || projectile.y > 92) {
       projectile.el.remove();
       return false;
     }
 
-    positionProjectile(projectile);
     return true;
   });
-}
-
-function removeUnit(uid) {
-  const index = state.units.findIndex(unit => unit && unit.uid === uid);
-  if (index >= 0) {
-    const unit = state.units[index];
-    unit.el.classList.add('defeated');
-    setTimeout(() => unit.el.remove(), 160);
-    state.units.splice(index, 1);
-  }
 }
 
 function positionUnit(unit) {
@@ -453,83 +535,59 @@ function positionProjectile(projectile) {
   projectile.el.style.top = `${projectile.y}%`;
 }
 
-function updateHud() {
-  timerEl.textContent = formatTime(state.timeLeft);
-  elixirFill.style.width = `${(state.elixir / state.maxElixir) * 100}%`;
-  elixirText.textContent = `${Math.floor(state.elixir)} / ${state.maxElixir}`;
-
-  updateTowerBar('player', 'left');
-  updateTowerBar('player', 'right');
-  updateTowerBar('player', 'king');
-  updateTowerBar('enemy', 'left');
-  updateTowerBar('enemy', 'right');
-  updateTowerBar('enemy', 'king');
-
-  const hand = getHandCards();
-  document.querySelectorAll('.card').forEach((cardEl, index) => {
-    cardEl.querySelectorAll('button').forEach(btn => {
-      btn.disabled = state.elixir < hand[index].cost || state.over;
-    });
-  });
+function updateUnitHp(unit) {
+  if (!unit?.hpFill) return;
+  const pct = Math.max(0, (unit.hp / unit.maxHp) * 100);
+  unit.hpFill.style.width = `${pct}%`;
 }
 
-function updateTowerBar(side, tower) {
-  const hp = state[`${side}Towers`][tower];
-  const max = towerMax[tower];
-  const fill = document.getElementById(`${side}${capitalize(tower)}Hp`);
-  const text = document.getElementById(`${side}${capitalize(tower)}Text`);
-  fill.style.width = `${(hp / max) * 100}%`;
-  text.textContent = hp;
+function removeUnit(uid) {
+  const index = state.units.findIndex(unit => unit && unit.uid === uid);
+  if (index === -1) return;
+  const unit = state.units[index];
+  unit.el.classList.add('defeated');
+  setTimeout(() => unit.el.remove(), 180);
+  state.units[index] = null;
 }
 
-function capitalize(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function flashUnit(el) {
+  if (!el) return;
+  el.classList.add('attacking');
+  setTimeout(() => el.classList.remove('attacking'), 140);
 }
 
 function stepTimer() {
   if (state.over) return;
   state.timeLeft -= 1;
   updateHud();
-  if (state.timeLeft <= 0) {
-    finishMatch();
-  }
+  if (state.timeLeft <= 0) endGame(resolveWinnerByHealth());
+}
+
+function resolveWinnerByHealth() {
+  const playerTotal = Object.values(state.playerTowers).reduce((a, b) => a + b, 0);
+  const enemyTotal = Object.values(state.enemyTowers).reduce((a, b) => a + b, 0);
+  return playerTotal >= enemyTotal ? 'player' : 'enemy';
 }
 
 function checkWin() {
-  if (state.enemyTowers.king <= 0) {
-    playSound('victory');
-    endGame('Victory! You destroyed the enemy king tower.');
-  } else if (state.playerTowers.king <= 0) {
-    playSound('defeat');
-    endGame('Defeat! Your king tower has fallen.');
-  }
+  if (state.enemyTowers.king <= 0) endGame('player');
+  else if (state.playerTowers.king <= 0) endGame('enemy');
 }
 
-function finishMatch() {
-  const playerScore = Object.values(state.enemyTowers).reduce((sum, hp) => sum + hp, 0);
-  const enemyScore = Object.values(state.playerTowers).reduce((sum, hp) => sum + hp, 0);
-  if (playerScore < enemyScore) {
-    playSound('victory');
-    endGame('Victory on damage! You dealt more total damage.');
-  } else if (enemyScore < playerScore) {
-    playSound('defeat');
-    endGame('Defeat on damage! The enemy dealt more total damage.');
-  } else {
-    endGame('Draw! Both sides finished even.');
-  }
-}
-
-function endGame(message) {
+function endGame(winner) {
+  if (state.over) return;
   state.over = true;
   clearLoops();
-  updateHud();
-  setStatus(message);
+  setStatus(winner === 'player' ? 'Victory!' : 'Defeat');
+  log(winner === 'player' ? 'You shattered the enemy core.' : 'Your fortress has fallen.');
+  playSound(winner === 'player' ? 'victory' : 'defeat');
+
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
     <div class="overlay-card">
-      <h2>${message}</h2>
-      <p>The arena cools down. Reset the match and try a new strategy.</p>
+      <h2>${winner === 'player' ? 'Victory' : 'Defeat'}</h2>
+      <p>${winner === 'player' ? 'Your neon battalion outplayed the enemy.' : 'The enemy seized the arena this time.'}</p>
       <button id="playAgainBtn">Play Again</button>
     </div>
   `;
@@ -541,8 +599,8 @@ function resetGame() {
   document.querySelector('.overlay')?.remove();
   state.timeLeft = 120;
   state.elixir = 5;
-  state.units.forEach(unit => unit.el.remove());
-  state.projectiles.forEach(projectile => projectile.el.remove());
+  state.units.forEach(unit => unit?.el?.remove());
+  state.projectiles.forEach(projectile => projectile?.el?.remove());
   state.units = [];
   state.projectiles = [];
   state.nextUnitId = 1;
@@ -551,15 +609,34 @@ function resetGame() {
   state.playerDeck = [...defaultDeckOrder];
   state.nextDeckIndex = 0;
   state.draggingCardId = null;
+  state.selectedTouchCardId = null;
   state.playerTowers = { left: 1400, right: 1400, king: 2400 };
   state.enemyTowers = { left: 1400, right: 1400, king: 2400 };
-  battleLog.innerHTML = '';
   renderCards();
+  updateHud();
+  battleLog.innerHTML = '';
   init();
 }
 
-function setStatus(message) {
-  statusPill.textContent = message;
+function updateHud() {
+  timerEl.textContent = `${String(Math.floor(state.timeLeft / 60)).padStart(2, '0')}:${String(state.timeLeft % 60).padStart(2, '0')}`;
+  elixirFill.style.width = `${(state.elixir / state.maxElixir) * 100}%`;
+  elixirText.textContent = `${Math.floor(state.elixir)} / ${state.maxElixir}`;
+  updateTowerBar('enemyLeft', state.enemyTowers.left, towerMax.left);
+  updateTowerBar('enemyRight', state.enemyTowers.right, towerMax.right);
+  updateTowerBar('enemyKing', state.enemyTowers.king, towerMax.king);
+  updateTowerBar('playerLeft', state.playerTowers.left, towerMax.left);
+  updateTowerBar('playerRight', state.playerTowers.right, towerMax.right);
+  updateTowerBar('playerKing', state.playerTowers.king, towerMax.king);
+}
+
+function updateTowerBar(prefix, value, max) {
+  document.getElementById(`${prefix}Hp`).style.width = `${Math.max(0, (value / max) * 100)}%`;
+  document.getElementById(`${prefix}Text`).textContent = value;
+}
+
+function setStatus(text) {
+  statusPill.textContent = text;
 }
 
 function log(message) {
@@ -567,96 +644,53 @@ function log(message) {
   entry.className = 'log-entry';
   entry.innerHTML = `<strong>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> - ${message}`;
   battleLog.prepend(entry);
-  while (battleLog.children.length > 12) {
-    battleLog.removeChild(battleLog.lastChild);
-  }
-}
-
-function flashUnit(el) {
-  el.classList.add('attacking');
-  setTimeout(() => el.classList.remove('attacking'), 140);
-}
-
-function flashTower(side, lane) {
-  const tower = document.querySelector(`.tower.${side}[data-target="${lane}"]`);
-  if (!tower) return;
-  tower.animate([
-    { filter: 'brightness(1)' },
-    { filter: 'brightness(1.8)' },
-    { filter: 'brightness(1)' }
-  ], { duration: 220, easing: 'ease-out' });
-}
-
-function formatTime(totalSeconds) {
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-  const seconds = String(totalSeconds % 60).padStart(2, '0');
-  return `${minutes}:${seconds}`;
+  while (battleLog.children.length > 10) battleLog.removeChild(battleLog.lastChild);
 }
 
 function ensureAudio() {
+  if (!state.soundEnabled) return null;
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioCtx = new AudioContextClass();
   }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-}
-
-function playTone(frequency, duration, type = 'sine', gainValue = 0.03) {
-  if (!state.soundEnabled) return;
-  ensureAudio();
-  const oscillator = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-  gain.gain.value = gainValue;
-  oscillator.connect(gain);
-  gain.connect(audioCtx.destination);
-  oscillator.start();
-  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-  oscillator.stop(audioCtx.currentTime + duration);
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
 }
 
 function playSound(type) {
-  if (!state.soundEnabled) return;
-  switch (type) {
-    case 'deploy':
-      playTone(440, 0.12, 'triangle', 0.05);
-      setTimeout(() => playTone(660, 0.08, 'triangle', 0.04), 50);
-      break;
-    case 'hit':
-      playTone(180, 0.08, 'square', 0.03);
-      break;
-    case 'tower':
-      playTone(120, 0.14, 'sawtooth', 0.035);
-      break;
-    case 'victory':
-      playTone(523, 0.14, 'triangle', 0.05);
-      setTimeout(() => playTone(659, 0.14, 'triangle', 0.05), 120);
-      setTimeout(() => playTone(784, 0.2, 'triangle', 0.05), 240);
-      break;
-    case 'defeat':
-      playTone(220, 0.18, 'sawtooth', 0.04);
-      setTimeout(() => playTone(174, 0.22, 'sawtooth', 0.035), 140);
-      break;
-    case 'error':
-      playTone(160, 0.08, 'square', 0.03);
-      setTimeout(() => playTone(120, 0.1, 'square', 0.03), 60);
-      break;
-  }
+  const ctx = ensureAudio();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  const presets = {
+    deploy: [220, 0.05, 'triangle'],
+    hit: [420, 0.04, 'square'],
+    tower: [160, 0.07, 'sawtooth'],
+    victory: [620, 0.18, 'triangle'],
+    defeat: [120, 0.18, 'sine'],
+    error: [90, 0.08, 'square']
+  };
+
+  const [freq, duration, wave] = presets[type] || presets.hit;
+  osc.type = wave;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.001, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
 }
 
 restartBtn.addEventListener('click', resetGame);
 soundToggleBtn.addEventListener('click', () => {
   state.soundEnabled = !state.soundEnabled;
   soundToggleBtn.textContent = `Sound: ${state.soundEnabled ? 'On' : 'Off'}`;
-  if (state.soundEnabled) {
-    playTone(520, 0.08, 'triangle', 0.04);
-  }
+  setStatus(state.soundEnabled ? 'Sound enabled' : 'Sound muted');
 });
-
-document.body.addEventListener('click', () => {
-  if (state.soundEnabled) ensureAudio();
-}, { once: true });
 
 init();
