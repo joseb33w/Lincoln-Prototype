@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lincoln Prototype - Arena Duel</title>
+  <title>Lincoln Prototype - Neon Arena Duel</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div>
+        <p class="eyebrow">Prototype Arena Experience</p>
         <h1>Lincoln Prototype</h1>
-        <p>Simple lane battle inspired by real-time card arena games</p>
+        <p>Drag cards into glowing lanes, pressure towers, and outplay the enemy in a stylized neon battlefield.</p>
       </div>
       <div class="topbar-actions">
         <button id="soundToggleBtn" class="secondary-btn">Sound: On</button>
@@ -21,7 +22,7 @@
 
     <section class="hud">
       <div class="player-panel enemy-panel">
-        <h2>Enemy King</h2>
+        <h2>Enemy Fortress</h2>
         <div class="health-row"><span>Left Tower</span><div class="bar"><div id="enemyLeftHp" class="fill enemy"></div></div><strong id="enemyLeftText">1400</strong></div>
         <div class="health-row"><span>King Tower</span><div class="bar"><div id="enemyKingHp" class="fill enemy"></div></div><strong id="enemyKingText">2400</strong></div>
         <div class="health-row"><span>Right Tower</span><div class="bar"><div id="enemyRightHp" class="fill enemy"></div></div><strong id="enemyRightText">1400</strong></div>
@@ -35,7 +36,7 @@
           <strong id="elixirText">5 / 10</strong>
         </div>
         <div class="status-pill" id="statusPill">Battle ready</div>
-        <div class="tip">Choose a card, then deploy it into the left or right lane.</div>
+        <div class="tip">Drag a card into the left or right lane. Archer now fires real projectiles from range.</div>
       </div>
 
       <div class="player-panel">
@@ -48,17 +49,25 @@
 
     <main class="arena-shell">
       <div class="arena" id="arena">
-        <div class="lane left-lane" data-lane="left">
+        <div class="lane left-lane drop-lane" data-lane="left">
+          <div class="lane-glow"></div>
+          <div class="drop-banner">Drop Here</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="left">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="left">PT</div>
         </div>
         <div class="lane center-lane">
+          <div class="center-core">
+            <div class="core-ring"></div>
+            <div class="core-ring ring-2"></div>
+            <div class="river">Energy Rift</div>
+          </div>
           <div class="tower enemy king" data-side="enemy" data-target="king">EK</div>
-          <div class="river">River</div>
           <div class="tower player king" data-side="player" data-target="king">PK</div>
         </div>
-        <div class="lane right-lane" data-lane="right">
+        <div class="lane right-lane drop-lane" data-lane="right">
+          <div class="lane-glow"></div>
+          <div class="drop-banner">Drop Here</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="right">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="right">PT</div>
@@ -69,7 +78,7 @@
     <section class="deck-panel">
       <div>
         <h2>Your Hand</h2>
-        <p>Deploy any card to either lane for better control.</p>
+        <p>Click for quick deploy or drag cards straight into a glowing lane.</p>
       </div>
       <div class="next-card-box">
         <span>Next Card</span>
