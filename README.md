@@ -5,11 +5,40 @@ A stylish browser-based lane battle prototype inspired by real-time card arena g
 ## How to Play
 
 - Open `index.html` in a browser.
+- Press **Start Battle** to begin.
 - Build elixir over time.
 - Drag a card into the left or right lane, or use the quick deploy buttons.
 - Units march toward enemy towers and attack automatically.
 - Archers fire ranged projectiles from a distance.
 - Defend your towers while destroying the enemy fortress before time runs out.
+
+## UX Improvements Added
+
+- Start screen with onboarding and controls
+- Countdown before battle begins
+- Pause and resume flow
+- End-of-match results summary
+- Better lane pressure feedback
+- Tactical tips and toast notifications
+- Keyboard support for faster play
+- Session best-result tracking with local storage
+- Improved mobile and accessibility behavior
+- Clearer selected-card and lane recommendation feedback
+
+## Controls
+
+- Drag a card onto a glowing lane to deploy it.
+- Or click the left/right deploy buttons on each card.
+- Keyboard:
+  - `1-4` select cards
+  - `L` deploy selected card left
+  - `R` deploy selected card right
+  - `P` pause/resume
+  - `M` mute/unmute
+- Each card spends elixir based on its cost.
+- Units automatically move and attack once deployed.
+- Click **Restart Match** to begin a fresh round.
+- Click **Sound: On/Off** to toggle audio.
 
 ## Features
 
@@ -27,28 +56,23 @@ A stylish browser-based lane battle prototype inspired by real-time card arena g
 - Sound effects with toggle control
 - Battle log for match events
 - Neon cyber-fantasy arena styling
-
-## Controls
-
-- Drag a card onto a glowing lane to deploy it.
-- Or click the left/right deploy buttons on each card.
-- Each card spends elixir based on its cost.
-- Units automatically move and attack once deployed.
-- Click **Restart Match** to begin a fresh round.
-- Click **Sound: On/Off** to toggle audio.
+- Start, pause, and results overlays
+- Keyboard and touch support
+- Lane recommendation feedback
+- Session best-result persistence
 
 ## Files
 
-- `index.html` - game structure and HUD
-- `styles.css` - arena visuals, animations, cards, and effects
-- `app.js` - gameplay logic, drag-and-drop, combat, projectiles, sounds, and game state
+- `index.html` - game structure, overlays, HUD, and arena
+- `styles.css` - arena visuals, overlays, animations, cards, and effects
+- `app.js` - gameplay logic, combat, deployment, sounds, countdown, pause, results, and session stats
 
 ## Future Ideas
 
-- Touch-optimized drag controls for mobile
 - More unit types and spells
 - Smarter enemy AI
-- Special abilities and status effects
+- Matchmaking difficulty levels
+- Additional arenas and themes
 - GitHub Pages deployment
 
 ## Tech Stack
