@@ -16,6 +16,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -28,14 +32,36 @@ body {
   color: var(--text);
 }
 
+body.overlay-open {
+  overflow: hidden;
+}
+
 button {
   cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:focus-visible,
+.card:focus-visible,
+.drop-lane:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.95);
+  outline-offset: 3px;
 }
 
 .app {
   max-width: 1240px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.app.dimmed {
+  filter: blur(2px) brightness(0.65);
+  pointer-events: none;
+  user-select: none;
 }
 
 .eyebrow {
@@ -72,7 +98,9 @@ button {
   flex-wrap: wrap;
 }
 
-.topbar button {
+.topbar button,
+.overlay-actions button,
+.deploy-row button {
   border: none;
   background: linear-gradient(135deg, var(--accent), #6366f1);
   color: white;
@@ -82,8 +110,49 @@ button {
   box-shadow: 0 10px 30px rgba(99, 102, 241, 0.25);
 }
 
-.topbar .secondary-btn {
+.topbar .secondary-btn,
+.overlay-actions .secondary-btn,
+.deploy-row .secondary-btn {
   background: linear-gradient(135deg, #0891b2, #2563eb);
+}
+
+.match-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.match-chip,
+.player-panel,
+.center-info,
+.battle-log,
+.cards,
+.deck-panel,
+.overlay-card {
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+}
+
+.match-chip {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.match-chip span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.match-chip strong {
+  font-size: 1rem;
 }
 
 .hud {
@@ -95,19 +164,9 @@ button {
 
 .player-panel,
 .center-info,
+.deck-panel,
 .battle-log,
-.cards,
-.deck-panel {
-  background: var(--panel);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
-}
-
-.player-panel,
-.center-info,
-.deck-panel {
+.cards {
   padding: 18px;
 }
 
@@ -153,6 +212,30 @@ button {
   flex-direction: column;
   justify-content: center;
   text-align: center;
+  position: relative;
+}
+
+.countdown-banner {
+  position: absolute;
+  inset: 12px 12px auto 12px;
+  margin: 0 auto;
+  width: fit-content;
+  min-width: 72px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.18);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fde68a;
+  font-size: 1.4rem;
+  font-weight: bold;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+.countdown-banner.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .timer {
@@ -233,9 +316,14 @@ button {
 }
 
 .drop-lane.drag-over,
-.drop-lane.touch-target {
+.drop-lane.touch-target,
+.drop-lane.recommended {
   box-shadow: 0 0 0 2px rgba(34,211,238,0.45), 0 0 28px rgba(34,211,238,0.25);
   transform: translateY(-2px);
+}
+
+.drop-lane.recommended::after {
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
 .lane-glow {
@@ -245,9 +333,9 @@ button {
   pointer-events: none;
 }
 
-.drop-banner {
+.drop-banner,
+.lane-pressure {
   position: absolute;
-  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   padding: 6px 12px;
@@ -258,6 +346,15 @@ button {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.drop-banner {
+  top: 16px;
+}
+
+.lane-pressure {
+  bottom: 16px;
+  border-color: rgba(251, 191, 36, 0.24);
 }
 
 .touch-drop-hint {
@@ -392,6 +489,10 @@ button {
   box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55), 0 0 22px rgba(251, 191, 36, 0.4);
 }
 
+.unit.dashing {
+  filter: brightness(1.25);
+}
+
 .hp-shell {
   position: absolute;
   left: 50%;
@@ -468,7 +569,6 @@ button {
 
 .cards {
   margin-top: 18px;
-  padding: 16px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
@@ -518,95 +618,183 @@ button {
   display: inline-block;
   margin-top: 6px;
   color: #bfdbfe;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 .ability-tag {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 4px 8px;
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 0.72rem;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #e0f2fe;
+  background: rgba(34, 211, 238, 0.12);
+  color: #dbeafe;
+  font-size: 0.78rem;
+  border: 1px solid rgba(34, 211, 238, 0.22);
 }
 
 .deploy-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.card button {
-  width: 100%;
-  border: none;
-  padding: 10px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--gold), #f59e0b);
-  font-weight: bold;
-}
-
-.card button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.deploy-row button {
+  padding: 10px 12px;
+  border-radius: 12px;
 }
 
 .battle-log {
   margin-top: 18px;
-  padding: 16px;
-  min-height: 130px;
+  min-height: 140px;
   max-height: 220px;
   overflow: auto;
 }
 
 .log-entry {
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   color: var(--muted);
 }
 
 .log-entry strong {
-  color: white;
+  color: var(--text);
 }
 
-.overlay {
+.screen-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.82);
-  display: grid;
-  place-items: center;
-  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.78);
+  z-index: 30;
+}
+
+.screen-overlay.active {
+  display: flex;
 }
 
 .overlay-card {
-  width: min(90vw, 480px);
-  background: rgba(15, 23, 42, 0.95);
-  border-radius: 24px;
-  padding: 24px;
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+  width: min(920px, 100%);
+  padding: 28px;
 }
 
+.hero-card {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96));
+}
+
+.compact-card {
+  width: min(680px, 100%);
+}
+
+.overlay-card h1,
 .overlay-card h2 {
-  margin-top: 0;
-  font-size: 2rem;
+  margin: 0 0 10px;
 }
 
-.overlay-card button {
+.overlay-lead {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.overlay-grid,
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.info-chip,
+.result-stat {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.info-chip strong,
+.result-stat strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.info-chip span,
+.result-stat span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.how-to-play {
   margin-top: 14px;
-  border: none;
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), #6366f1);
-  color: white;
-  font-weight: bold;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
-@media (max-width: 960px) {
-  .hud {
+.how-to-play ol {
+  margin: 12px 0 0 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.overlay-footnote {
+  color: #bfdbfe;
+  margin-top: 18px;
+  font-size: 0.92rem;
+}
+
+.toast-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: 320px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: white;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 18px 30px rgba(0,0,0,0.32);
+}
+
+.toast.success {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.toast.warning {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.toast.danger {
+  border-color: rgba(251, 113, 133, 0.45);
+}
+
+@media (max-width: 980px) {
+  .hud,
+  .match-strip,
+  .cards,
+  .overlay-grid,
+  .results-grid {
     grid-template-columns: 1fr;
   }
 
@@ -614,11 +802,12 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .cards {
-    grid-template-columns: 1fr 1fr;
+  .center-lane {
+    min-height: 260px;
   }
 
-  .deck-panel {
+  .deck-panel,
+  .topbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -626,24 +815,38 @@ button {
 
 @media (max-width: 640px) {
   .app {
-    padding: 14px;
+    padding: 16px;
   }
 
-  .topbar {
+  .topbar h1 {
+    font-size: 1.85rem;
+  }
+
+  .stacked-mobile {
     flex-direction: column;
-    align-items: stretch;
   }
 
-  .cards {
-    grid-template-columns: 1fr;
+  .overlay-card {
+    padding: 20px;
   }
 
-  .health-row {
-    grid-template-columns: 78px 1fr 42px;
-    font-size: 0.85rem;
+  .toast-stack {
+    left: 16px;
+    right: 16px;
+    top: auto;
+    bottom: 16px;
   }
 
-  .touch-drop-hint {
-    font-size: 0.65rem;
+  .toast {
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
