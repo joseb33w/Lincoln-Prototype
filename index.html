@@ -7,7 +7,70 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
+  <div class="screen-overlay active" id="startOverlay" aria-hidden="false">
+    <div class="overlay-card hero-card">
+      <p class="eyebrow">Prototype Arena Experience</p>
+      <h1>Lincoln Prototype</h1>
+      <p class="overlay-lead">A faster, clearer, more readable neon lane battler. Build elixir, deploy into the left or right lane, and break the enemy fortress before time expires.</p>
+      <div class="overlay-grid">
+        <div class="info-chip"><strong>Play flow</strong><span>Start screen, countdown, pause, and results summary</span></div>
+        <div class="info-chip"><strong>Controls</strong><span>Drag, quick deploy, or tap-select then tap a lane</span></div>
+        <div class="info-chip"><strong>Goal</strong><span>Destroy more tower health than the enemy before the timer ends</span></div>
+        <div class="info-chip"><strong>Accessibility</strong><span>Reduced motion, high contrast, readable alerts, and keyboard support</span></div>
+      </div>
+      <div class="how-to-play">
+        <h2>How to Play</h2>
+        <ol>
+          <li>Build elixir over time.</li>
+          <li>Pick a card from your hand.</li>
+          <li>Deploy to the left or right lane.</li>
+          <li>Defend your towers and pressure weak enemy lanes.</li>
+          <li>Use quick units early and tanks when you have enough elixir.</li>
+        </ol>
+      </div>
+      <div class="overlay-actions">
+        <button id="startBattleBtn">Start Battle</button>
+        <button id="howToPlayBtn" class="secondary-btn">Show Tips</button>
+      </div>
+      <p class="overlay-footnote">Keyboard: 1-4 select cards, L deploy left, R deploy right, P pause, M mute.</p>
+    </div>
+  </div>
+
+  <div class="screen-overlay" id="pauseOverlay" aria-hidden="true">
+    <div class="overlay-card compact-card">
+      <p class="eyebrow">Match Paused</p>
+      <h2>Take a breather</h2>
+      <p class="overlay-lead">Review the board, then jump back in when you are ready.</p>
+      <div class="overlay-actions stacked-mobile">
+        <button id="resumeBtn">Resume Match</button>
+        <button id="restartFromPauseBtn" class="secondary-btn">Restart Match</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen-overlay" id="resultOverlay" aria-hidden="true">
+    <div class="overlay-card compact-card">
+      <p class="eyebrow">Battle Complete</p>
+      <h2 id="resultTitle">Victory</h2>
+      <p class="overlay-lead" id="resultSummary">You outlasted the enemy fortress.</p>
+      <div class="results-grid">
+        <div class="result-stat"><span>Result</span><strong id="resultOutcome">Victory</strong></div>
+        <div class="result-stat"><span>Player Tower HP</span><strong id="resultPlayerHp">0</strong></div>
+        <div class="result-stat"><span>Enemy Tower HP</span><strong id="resultEnemyHp">0</strong></div>
+        <div class="result-stat"><span>Cards Played</span><strong id="resultCardsPlayed">0</strong></div>
+        <div class="result-stat"><span>Best Session</span><strong id="bestResultText">-</strong></div>
+        <div class="result-stat"><span>Match Time</span><strong id="resultTime">02:00</strong></div>
+      </div>
+      <div class="overlay-actions stacked-mobile">
+        <button id="playAgainBtn">Play Again</button>
+        <button id="closeResultsBtn" class="secondary-btn">Close Results</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="app" id="appRoot">
     <header class="topbar">
       <div>
         <p class="eyebrow">Prototype Arena Experience</p>
@@ -15,10 +78,18 @@
         <p>Drag or tap cards into glowing lanes, trigger special abilities, and overwhelm the enemy in a cinematic neon battlefield.</p>
       </div>
       <div class="topbar-actions">
+        <button id="tipsBtn" class="secondary-btn">Tips</button>
+        <button id="pauseBtn" class="secondary-btn">Pause</button>
         <button id="soundToggleBtn" class="secondary-btn">Sound: On</button>
         <button id="restartBtn">Restart Match</button>
       </div>
     </header>
+
+    <section class="match-strip">
+      <div class="match-chip"><span>Selected Card</span><strong id="selectedCardLabel">None</strong></div>
+      <div class="match-chip"><span>Lane Focus</span><strong id="laneAdvice">Open the battle with either lane</strong></div>
+      <div class="match-chip"><span>Best Session</span><strong id="bestSessionLabel">No record yet</strong></div>
+    </section>
 
     <section class="hud">
       <div class="player-panel enemy-panel">
@@ -29,6 +100,7 @@
       </div>
 
       <div class="center-info">
+        <div class="countdown-banner" id="countdownBanner" aria-live="assertive">3</div>
         <div class="timer" id="timer">02:00</div>
         <div class="elixir-wrap">
           <span>Elixir</span>
@@ -36,7 +108,7 @@
           <strong id="elixirText">5 / 10</strong>
         </div>
         <div class="status-pill" id="statusPill">Battle ready</div>
-        <div class="tip">Desktop: drag cards into a lane. Mobile: tap a card, then tap a glowing lane to deploy with touch support.</div>
+        <div class="tip" id="tipText">Desktop: drag cards into a lane. Mobile: tap a card, then tap a glowing lane to deploy with touch support.</div>
       </div>
 
       <div class="player-panel">
@@ -53,6 +125,7 @@
           <div class="lane-glow"></div>
           <div class="drop-banner">Left Lane</div>
           <div class="touch-drop-hint">Tap selected card to deploy here</div>
+          <div class="lane-pressure" id="leftLanePressure">Balanced</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="left">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="left">PT</div>
@@ -70,6 +143,7 @@
           <div class="lane-glow"></div>
           <div class="drop-banner">Right Lane</div>
           <div class="touch-drop-hint">Tap selected card to deploy here</div>
+          <div class="lane-pressure" id="rightLanePressure">Balanced</div>
           <div class="tower enemy tower-small" data-side="enemy" data-target="right">ET</div>
           <div class="bridge">Bridge</div>
           <div class="tower player tower-small" data-side="player" data-target="right">PT</div>
@@ -80,7 +154,7 @@
     <section class="deck-panel">
       <div>
         <h2>Your Hand</h2>
-        <p>Drag for desktop precision, or tap-select a card and tap a lane on touch devices. Special units now stun, splash, and dash.</p>
+        <p>Drag for desktop precision, or tap-select a card and tap a lane on touch devices. Special units now stun, splash, and dash. The first card is highlighted so you can read your next best play faster.</p>
       </div>
       <div class="next-card-box">
         <span>Next Card</span>
