@@ -107,39 +107,63 @@
     </section>
 
     <main class="arena-shell arena-3d-shell">
+      <div class="arena-sky"></div>
       <div class="arena-depth-glow"></div>
+      <div class="arena-stage-shadow"></div>
+      <div class="camera-orbit camera-orbit-left"></div>
+      <div class="camera-orbit camera-orbit-right"></div>
+      <div class="arena-crowd arena-crowd-top"></div>
+      <div class="arena-crowd arena-crowd-bottom"></div>
+      <div class="arena-energy-columns" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="arena-interaction-bar">
+        <div class="interaction-chip"><span>Camera Tilt</span><strong id="cameraModeLabel">Tracking Cursor</strong></div>
+        <div class="interaction-chip"><span>Combat Tempo</span><strong id="tempoLabel">Normal Pulse</strong></div>
+        <div class="interaction-chip"><span>Last Clash</span><strong id="lastClashLabel">Waiting</strong></div>
+      </div>
       <div class="arena" id="arena">
         <div class="lane left-lane drop-lane" data-lane="left">
           <div class="lane-floor"></div>
+          <div class="lane-grid"></div>
           <div class="lane-glow"></div>
           <div class="lane-scanline"></div>
+          <div class="lane-fog"></div>
           <div class="drop-banner">Left Lane</div>
           <div class="touch-drop-hint">Tap selected card to deploy here</div>
           <div class="lane-pressure" id="leftLanePressure">Balanced</div>
-          <div class="tower enemy tower-small" data-side="enemy" data-target="left">ET</div>
+          <div class="lane-rail lane-rail-top"></div>
+          <div class="lane-rail lane-rail-bottom"></div>
+          <div class="tower enemy tower-small" data-side="enemy" data-target="left"><span>ET</span></div>
           <div class="bridge">Bridge</div>
-          <div class="tower player tower-small" data-side="player" data-target="left">PT</div>
+          <div class="tower player tower-small" data-side="player" data-target="left"><span>PT</span></div>
         </div>
         <div class="lane center-lane">
           <div class="center-core">
             <div class="core-ring"></div>
             <div class="core-ring ring-2"></div>
+            <div class="core-ring ring-3"></div>
             <div class="core-pulse"></div>
+            <div class="center-beam"></div>
             <div class="river">Energy Rift</div>
           </div>
-          <div class="tower enemy king" data-side="enemy" data-target="king">EK</div>
-          <div class="tower player king" data-side="player" data-target="king">PK</div>
+          <div class="tower enemy king" data-side="enemy" data-target="king"><span>EK</span></div>
+          <div class="tower player king" data-side="player" data-target="king"><span>PK</span></div>
         </div>
         <div class="lane right-lane drop-lane" data-lane="right">
           <div class="lane-floor"></div>
+          <div class="lane-grid"></div>
           <div class="lane-glow"></div>
           <div class="lane-scanline"></div>
+          <div class="lane-fog"></div>
           <div class="drop-banner">Right Lane</div>
           <div class="touch-drop-hint">Tap selected card to deploy here</div>
           <div class="lane-pressure" id="rightLanePressure">Balanced</div>
-          <div class="tower enemy tower-small" data-side="enemy" data-target="right">ET</div>
+          <div class="lane-rail lane-rail-top"></div>
+          <div class="lane-rail lane-rail-bottom"></div>
+          <div class="tower enemy tower-small" data-side="enemy" data-target="right"><span>ET</span></div>
           <div class="bridge">Bridge</div>
-          <div class="tower player tower-small" data-side="player" data-target="right">PT</div>
+          <div class="tower player tower-small" data-side="player" data-target="right"><span>PT</span></div>
         </div>
       </div>
     </main>
