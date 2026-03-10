@@ -8,50 +8,19 @@
 </head>
 <body>
   <div class="screen-overlay active" id="startOverlay" aria-hidden="false">
-    <div class="overlay-card hero-card">
+    <div class="overlay-card hero-card compact-start-card">
       <p class="eyebrow">Prototype Arena Experience</p>
       <h1>Lincoln Prototype</h1>
-      <p class="overlay-lead">A faster, clearer, more readable neon lane battler. Build elixir, deploy into the left or right lane, and break the enemy fortress before time expires.</p>
-      <div class="overlay-grid">
-        <div class="info-chip"><strong>Play flow</strong><span>Start screen, countdown, pause, and results summary</span></div>
-        <div class="info-chip"><strong>Controls</strong><span>Drag, quick deploy, or tap-select then tap a lane</span></div>
-        <div class="info-chip"><strong>Goal</strong><span>Destroy more tower health than the enemy before the timer ends</span></div>
-        <div class="info-chip"><strong>Accessibility</strong><span>Reduced motion, high contrast, readable alerts, and keyboard support</span></div>
-      </div>
-      <div class="how-to-play">
-        <h2>How to Play</h2>
-        <ol>
-          <li>Build elixir over time.</li>
-          <li>Pick a card from your hand.</li>
-          <li>Deploy to the left or right lane.</li>
-          <li>Defend your towers and pressure weak enemy lanes.</li>
-          <li>Use quick units early and tanks when you have enough elixir.</li>
-        </ol>
+      <p class="overlay-lead">A faster, clearer neon lane battler. Build elixir, deploy left or right, and break the enemy fortress before time expires.</p>
+      <div class="overlay-grid compact-grid">
+        <div class="info-chip"><strong>Deploy</strong><span>Pick a card and drop it into a lane</span></div>
+        <div class="info-chip"><strong>Defend</strong><span>Protect weak towers before they collapse</span></div>
+        <div class="info-chip"><strong>Pressure</strong><span>Attack the softer lane when the enemy overcommits</span></div>
       </div>
       <div class="overlay-actions">
         <button id="startBattleBtn">Start Battle</button>
-        <button id="howToPlayBtn" class="secondary-btn">Show Tips</button>
       </div>
       <p class="overlay-footnote">Keyboard: 1-4 select cards, L deploy left, R deploy right, P pause, M mute.</p>
-    </div>
-  </div>
-
-  <div class="screen-overlay" id="instructionsOverlay" aria-hidden="true">
-    <div class="overlay-card compact-instructions-card" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
-      <button id="closeInstructionsBtn" class="icon-close-btn" type="button" aria-label="Close instructions">&times;</button>
-      <p class="eyebrow">Quick Tips</p>
-      <h2 id="instructionsTitle">Jump In Fast</h2>
-      <p class="overlay-lead compact-lead">Pick a card, choose left or right, and keep pressure on the weaker lane.</p>
-      <div class="quick-tip-list">
-        <button class="quick-tip-chip" type="button">Build elixir before expensive drops</button>
-        <button class="quick-tip-chip" type="button">Tap a selected card, then tap a lane</button>
-        <button class="quick-tip-chip" type="button">Defend first if your tower is low</button>
-      </div>
-      <div class="overlay-actions compact-actions">
-        <button id="playFromInstructionsBtn">Play Now</button>
-        <button id="backFromInstructionsBtn" class="secondary-btn">Back</button>
-      </div>
-      <p class="overlay-footnote">Tap outside, press Escape, or use Back to close.</p>
     </div>
   </div>
 
@@ -97,7 +66,6 @@
         <p>Drag or tap cards into glowing lanes, trigger special abilities, and overwhelm the enemy in a cinematic neon battlefield.</p>
       </div>
       <div class="topbar-actions">
-        <button id="tipsBtn" class="secondary-btn">Tips</button>
         <button id="pauseBtn" class="secondary-btn">Pause</button>
         <button id="soundToggleBtn" class="secondary-btn">Sound: On</button>
         <button id="restartBtn">Restart Match</button>
