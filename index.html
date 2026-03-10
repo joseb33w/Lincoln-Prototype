@@ -60,7 +60,7 @@
       </div>
       <div class="overlay-actions stacked-mobile">
         <button id="playFromInstructionsBtn">Play Now</button>
-        <button id="backToStartBtn" class="secondary-btn">Back</button>
+        <button id="backFromInstructionsBtn" class="secondary-btn">Back</button>
       </div>
       <p class="overlay-footnote">You can also press Escape to close this screen.</p>
     </div>
@@ -181,19 +181,26 @@
       </div>
     </main>
 
-    <section class="deck-panel">
-      <div>
-        <h2>Your Hand</h2>
-        <p>Drag for desktop precision, or tap-select a card and tap a lane on touch devices. Special units now stun, splash, and dash. The first card is highlighted so you can read your next best play faster.</p>
+    <section class="cards" id="cards" aria-label="Player hand"></section>
+
+    <section class="deck-layout">
+      <div class="deck-panel">
+        <h2>Deployment Controls</h2>
+        <p>Select a card to preview its cost and abilities. On touch devices, tap a card and then tap a lane to deploy instantly.</p>
+        <div class="deploy-row">
+          <button data-lane-btn="left" class="secondary-btn">Deploy to Left</button>
+          <button data-lane-btn="right" class="secondary-btn">Deploy to Right</button>
+        </div>
+        <div class="next-card-box">
+          <span>Next Card</span>
+          <strong id="nextCardLabel">Knight</strong>
+        </div>
       </div>
-      <div class="next-card-box">
-        <span>Next Card</span>
-        <strong id="nextCardLabel">Knight</strong>
+      <div class="battle-log" aria-live="polite">
+        <h2>Battle Feed</h2>
+        <div id="battleLog"></div>
       </div>
     </section>
-
-    <section class="cards" id="cards"></section>
-    <section class="battle-log" id="battleLog"></section>
   </div>
 
   <script src="app.js"></script>
