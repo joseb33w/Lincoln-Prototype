@@ -102,7 +102,8 @@ const state = {
   countdownActive: false,
   resultOpen: false,
   tipIndex: 0,
-  bestSession: loadBestSession()
+  bestSession: loadBestSession(),
+  hoverLane: null
 };
 
 const arena = document.getElementById('arena');
@@ -115,7 +116,6 @@ const elixirText = document.getElementById('elixirText');
 const restartBtn = document.getElementById('restartBtn');
 const soundToggleBtn = document.getElementById('soundToggleBtn');
 const statusPill = document.getElementById('statusPill');
-const nextCardLabel = document.getElementById('nextCardLabel');
 const selectedCardLabel = document.getElementById('selectedCardLabel');
 const laneAdvice = document.getElementById('laneAdvice');
 const bestSessionLabel = document.getElementById('bestSessionLabel');
@@ -125,16 +125,10 @@ const leftLanePressure = document.getElementById('leftLanePressure');
 const rightLanePressure = document.getElementById('rightLanePressure');
 const toastStack = document.getElementById('toastStack');
 const startOverlay = document.getElementById('startOverlay');
-const instructionsOverlay = document.getElementById('instructionsOverlay');
 const pauseOverlay = document.getElementById('pauseOverlay');
 const resultOverlay = document.getElementById('resultOverlay');
 const startBattleBtn = document.getElementById('startBattleBtn');
-const howToPlayBtn = document.getElementById('howToPlayBtn');
-const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
-const backFromInstructionsBtn = document.getElementById('backFromInstructionsBtn');
-const playFromInstructionsBtn = document.getElementById('playFromInstructionsBtn');
 const pauseBtn = document.getElementById('pauseBtn');
-const tipsBtn = document.getElementById('tipsBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const restartFromPauseBtn = document.getElementById('restartFromPauseBtn');
 const playAgainBtn = document.getElementById('playAgainBtn');
@@ -153,6 +147,7 @@ let gameLoop = null;
 let timerLoop = null;
 let enemyLoop = null;
 let audioCtx = null;
+let tipInterval = null;
 
 function init() {
   bindLaneDrops();
@@ -164,22 +159,12 @@ function init() {
   setStatus('Press Start Battle to begin');
   log('Welcome to Lincoln Prototype. Start the match when you are ready.');
   clearLoops();
+  startTipLoop();
 }
 
 function bindUi() {
   startBattleBtn.addEventListener('click', startBattleFlow);
-  howToPlayBtn.addEventListener('click', openInstructions);
-  closeInstructionsBtn.addEventListener('click', closeInstructions);
-  backFromInstructionsBtn.addEventListener('click', closeInstructions);
-  playFromInstructionsBtn.addEventListener('click', function () {
-    closeInstructions();
-    startBattleFlow();
-  });
   pauseBtn.addEventListener('click', togglePause);
-  tipsBtn.addEventListener('click', function () {
-    rotateTip(true);
-    toast(tipText.textContent, 'success');
-  });
   resumeBtn.addEventListener('click', resumeFromPause);
   restartFromPauseBtn.addEventListener('click', restartMatch);
   playAgainBtn.addEventListener('click', restartMatch);
@@ -189,15 +174,35 @@ function bindUi() {
   restartBtn.addEventListener('click', restartMatch);
   soundToggleBtn.addEventListener('click', toggleSound);
   document.addEventListener('keydown', handleKeydown);
+  arena.addEventListener('pointermove', handleArenaParallax);
+  arena.addEventListener('pointerleave', resetArenaParallax);
+}
+
+function startTipLoop() {
+  if (tipInterval) {
+    clearInterval(tipInterval);
+  }
+  tipInterval = setInterval(function () {
+    if (!state.paused && !state.over) {
+      rotateTip();
+    }
+  }, 5000);
+}
+
+function handleArenaParallax(event) {
+  const rect = arena.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width - 0.5;
+  const y = (event.clientY - rect.top) / rect.height - 0.5;
+  arena.style.transform = 'rotateX(' + (10 - y * 8).toFixed(2) + 'deg) rotateY(' + (x * 8).toFixed(2) + 'deg)';
+}
+
+function resetArenaParallax() {
+  arena.style.transform = 'rotateX(10deg) rotateY(0deg)';
 }
 
 function handleKeydown(event) {
   const key = event.key.toLowerCase();
   if (key === 'escape') {
-    if (instructionsOverlay.classList.contains('active')) {
-      closeInstructions();
-      return;
-    }
     if (resultOverlay.classList.contains('active')) {
       hideOverlay(resultOverlay);
       return;
@@ -233,21 +238,7 @@ function handleKeydown(event) {
   }
 }
 
-function openInstructions() {
-  rotateTip(true);
-  hideOverlay(startOverlay);
-  showOverlay(instructionsOverlay);
-  setStatus('Reading instructions');
-}
-
-function closeInstructions() {
-  hideOverlay(instructionsOverlay);
-  showOverlay(startOverlay);
-  setStatus('Press Start Battle to begin');
-}
-
 function startBattleFlow() {
-  hideOverlay(instructionsOverlay);
   hideOverlay(startOverlay);
   resetState();
   renderCards();
@@ -288,23 +279,45 @@ function startCountdown() {
     setStatus('Battle live');
     log('Match started. Drag a card into a lane or tap-select one on mobile, then tap a glowing lane.');
     toast('Battle started. Good luck.', 'success');
-  }, 800);
+  }, 700);
 }
 
-function beginLoops() {
-  clearLoops();
-  gameLoop = setInterval(tick, 120);
-  timerLoop = setInterval(stepTimer, 1000);
-  enemyLoop = setInterval(enemyPlay, 2200);
+function togglePause() {
+  if (state.over || state.countdownActive) {
+    return;
+  }
+  if (state.paused) {
+    resumeFromPause();
+  } else {
+    state.paused = true;
+    showOverlay(pauseOverlay);
+    setStatus('Match paused');
+  }
 }
 
-function clearLoops() {
-  [gameLoop, timerLoop, enemyLoop].forEach(function (loop) {
-    if (loop) clearInterval(loop);
-  });
+function resumeFromPause() {
+  if (state.over) {
+    return;
+  }
+  hideOverlay(pauseOverlay);
+  state.paused = false;
+  setStatus('Battle live');
+}
+
+function restartMatch() {
+  hideOverlay(pauseOverlay);
+  hideOverlay(resultOverlay);
+  showOverlay(startOverlay);
+  resetState();
+  clearArenaUnits();
+  renderCards();
+  updateHud();
+  setStatus('Press Start Battle to begin');
+  log('Match reset. Start again when ready.');
 }
 
 function resetState() {
+  clearLoops();
   state.timeLeft = 120;
   state.elixir = 5;
   state.units = [];
@@ -323,462 +336,421 @@ function resetState() {
   state.cardsPlayed = 0;
   state.enemyCardsPlayed = 0;
   state.lastOutcome = null;
+  state.countdownActive = false;
   state.resultOpen = false;
-  battleLog.innerHTML = '';
-  updateLanePressure();
-  hideOverlay(resultOverlay);
+  state.hoverLane = null;
 }
 
-function clearArenaUnits() {
-  arena.querySelectorAll('.unit, .projectile').forEach(function (el) {
-    el.remove();
-  });
+function beginLoops() {
+  clearLoops();
+  gameLoop = setInterval(updateGame, 1000 / 30);
+  timerLoop = setInterval(function () {
+    if (state.paused || state.over) {
+      return;
+    }
+    state.timeLeft -= 1;
+    if (state.timeLeft <= 0) {
+      state.timeLeft = 0;
+      finishMatch();
+    }
+    updateHud();
+  }, 1000);
+  enemyLoop = setInterval(function () {
+    if (state.paused || state.over) {
+      return;
+    }
+    enemyDeploy();
+  }, 1800);
 }
 
-function getCard(id) {
-  return allCards.find(function (card) {
-    return card.id === id;
+function clearLoops() {
+  clearInterval(gameLoop);
+  clearInterval(timerLoop);
+  clearInterval(enemyLoop);
+}
+
+function bindLaneDrops() {
+  dropLanes.forEach(function (laneEl) {
+    laneEl.addEventListener('dragover', function (event) {
+      event.preventDefault();
+      laneEl.classList.add('drag-over');
+      state.hoverLane = laneEl.dataset.lane;
+      updateLaneAdvice();
+    });
+    laneEl.addEventListener('dragleave', function () {
+      laneEl.classList.remove('drag-over');
+      state.hoverLane = null;
+      updateLaneAdvice();
+    });
+    laneEl.addEventListener('drop', function (event) {
+      event.preventDefault();
+      laneEl.classList.remove('drag-over');
+      if (state.draggingCardId) {
+        deployPlayer(state.draggingCardId, laneEl.dataset.lane);
+      }
+      state.hoverLane = null;
+      updateLaneAdvice();
+    });
+    laneEl.addEventListener('click', function () {
+      if (state.selectedTouchCardId) {
+        deployPlayer(state.selectedTouchCardId, laneEl.dataset.lane);
+      }
+    });
   });
 }
 
 function getHandCards() {
-  return state.playerDeck.map(getCard);
-}
-
-function getNextCard() {
-  const nextId = state.playerDeck[state.nextDeckIndex % state.playerDeck.length];
-  return getCard(nextId);
-}
-
-function cycleDeck(playedCardId) {
-  state.playerDeck.shift();
-  state.playerDeck.push(playedCardId);
-  state.nextDeckIndex = 0;
-}
-
-function bindLaneDrops() {
-  dropLanes.forEach(function (lane) {
-    lane.tabIndex = 0;
-
-    lane.addEventListener('dragover', function (event) {
-      event.preventDefault();
-      lane.classList.add('drag-over');
-    });
-
-    lane.addEventListener('dragleave', function () {
-      lane.classList.remove('drag-over');
-    });
-
-    lane.addEventListener('drop', function (event) {
-      event.preventDefault();
-      lane.classList.remove('drag-over');
-      const cardId = event.dataTransfer.getData('text/plain');
-      if (cardId) {
-        deployPlayer(cardId, lane.dataset.lane);
-      }
-    });
-
-    lane.addEventListener('click', function () {
-      if (state.selectedTouchCardId) {
-        deployPlayer(state.selectedTouchCardId, lane.dataset.lane);
-      }
+  return state.playerDeck.map(function (cardId) {
+    return allCards.find(function (card) {
+      return card.id === cardId;
     });
   });
-}
-
-function showOverlay(overlay) {
-  overlay.classList.add('active');
-  overlay.setAttribute('aria-hidden', 'false');
-  appRoot.classList.add('dimmed');
-  document.body.classList.add('overlay-open');
-}
-
-function hideOverlay(overlay) {
-  overlay.classList.remove('active');
-  overlay.setAttribute('aria-hidden', 'true');
-  const anyOverlayOpen = [startOverlay, instructionsOverlay, pauseOverlay, resultOverlay].some(function (item) {
-    return item.classList.contains('active');
-  });
-  appRoot.classList.toggle('dimmed', anyOverlayOpen);
-  document.body.classList.toggle('overlay-open', anyOverlayOpen);
-}
-
-function togglePause() {
-  if (state.over || state.countdownActive || startOverlay.classList.contains('active') || instructionsOverlay.classList.contains('active')) {
-    return;
-  }
-  if (state.paused) {
-    resumeFromPause();
-  } else {
-    state.paused = true;
-    showOverlay(pauseOverlay);
-    setStatus('Match paused');
-  }
-}
-
-function resumeFromPause() {
-  hideOverlay(pauseOverlay);
-  if (!state.over) {
-    state.paused = false;
-    setStatus('Battle live');
-  }
-}
-
-function restartMatch() {
-  hideOverlay(pauseOverlay);
-  hideOverlay(resultOverlay);
-  startBattleFlow();
-}
-
-function toggleSound() {
-  state.soundEnabled = !state.soundEnabled;
-  soundToggleBtn.textContent = 'Sound: ' + (state.soundEnabled ? 'On' : 'Off');
-  toast('Sound ' + (state.soundEnabled ? 'enabled' : 'muted') + '.', 'success');
 }
 
 function renderCards() {
   cardsEl.innerHTML = '';
   getHandCards().forEach(function (card, index) {
-    const isAffordable = state.elixir >= card.cost;
-    const cardEl = document.createElement('article');
-    cardEl.className = 'card' + (isAffordable ? '' : ' unaffordable') + (state.selectedTouchCardId === card.id ? ' selected' : '');
+    const cardEl = document.createElement('button');
+    cardEl.className = 'card';
     cardEl.draggable = true;
-    cardEl.tabIndex = 0;
-    cardEl.innerHTML = `
-      <div class="card-top">
-        <div>
-          <h3>${card.name}</h3>
-          <p>${card.description}</p>
-        </div>
-        <div class="card-cost">${card.cost}</div>
-      </div>
-      <div class="card-meta">
-        <span>Damage ${card.damage}</span>
-        <span>HP ${card.hp}</span>
-      </div>
-      <div class="card-footer">
-        <div class="card-label">${card.label}</div>
-        <div class="deploy-row">
-          <button class="secondary-btn" data-action="select">Select</button>
-          <button data-action="left">Left</button>
-          <button data-action="right">Right</button>
-        </div>
-      </div>
-    `;
+    cardEl.type = 'button';
+    cardEl.innerHTML =
+      '<div class="card-top"><span class="card-label">' + card.label + '</span><span class="card-cost">' + card.cost + '</span></div>' +
+      '<h3>' + card.name + '</h3>' +
+      '<p>' + card.description + '</p>' +
+      '<div class="card-meta"><span>' + card.abilityLabel + '</span><strong>' + card.damage + ' dmg</strong></div>';
 
-    cardEl.addEventListener('dragstart', function (event) {
+    if (state.selectedTouchCardId === card.id) {
+      cardEl.classList.add('selected');
+    }
+
+    cardEl.addEventListener('dragstart', function () {
       state.draggingCardId = card.id;
-      event.dataTransfer.setData('text/plain', card.id);
+      cardEl.classList.add('dragging');
     });
 
     cardEl.addEventListener('dragend', function () {
       state.draggingCardId = null;
+      cardEl.classList.remove('dragging');
     });
 
-    cardEl.addEventListener('click', function (event) {
-      const action = event.target.dataset.action;
-      if (!action) return;
-      if (action === 'select') {
-        toggleTouchSelection(card.id);
-        return;
-      }
-      deployPlayer(card.id, action);
+    cardEl.addEventListener('click', function () {
+      toggleTouchSelection(card.id);
     });
 
-    cardEl.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        toggleTouchSelection(card.id);
-      }
+    cardEl.addEventListener('mouseenter', function () {
+      state.hoverLane = recommendLane();
+      highlightRecommendedLane();
+      updateLaneAdvice();
     });
 
-    if (index === 0) {
-      cardEl.classList.add('recommended');
-    }
+    cardEl.addEventListener('mouseleave', function () {
+      state.hoverLane = null;
+      highlightRecommendedLane();
+      updateLaneAdvice();
+    });
 
+    cardEl.setAttribute('aria-label', card.name + ', cost ' + card.cost + ', slot ' + (index + 1));
     cardsEl.appendChild(cardEl);
   });
-  nextCardLabel.textContent = getNextCard().name;
+  highlightRecommendedLane();
+  updateLaneAdvice();
 }
 
 function toggleTouchSelection(cardId) {
   state.selectedTouchCardId = state.selectedTouchCardId === cardId ? null : cardId;
-  const selectedCard = state.selectedTouchCardId ? getCard(state.selectedTouchCardId) : null;
-  selectedCardLabel.textContent = selectedCard ? selectedCard.name : 'None';
   renderCards();
+  updateHud();
+}
+
+function recommendLane() {
+  const leftPressure = state.enemyTowers.left - state.playerTowers.left;
+  const rightPressure = state.enemyTowers.right - state.playerTowers.right;
+  return leftPressure > rightPressure ? 'left' : 'right';
+}
+
+function highlightRecommendedLane() {
+  const recommended = recommendLane();
+  dropLanes.forEach(function (laneEl) {
+    laneEl.classList.toggle('recommended', laneEl.dataset.lane === recommended);
+    laneEl.classList.toggle('touch-target', !!state.selectedTouchCardId);
+  });
+}
+
+function updateLaneAdvice() {
+  const recommended = recommendLane();
+  const activeLane = state.hoverLane || recommended;
+  laneAdvice.textContent = (activeLane === 'left' ? 'Left lane' : 'Right lane') + ' is the best pressure point';
+  leftLanePressure.textContent = activeLane === 'left' ? 'Priority' : 'Watch';
+  rightLanePressure.textContent = activeLane === 'right' ? 'Priority' : 'Watch';
 }
 
 function deployPlayer(cardId, lane) {
-  if (state.paused || state.over || state.countdownActive) return;
-  const card = getCard(cardId);
-  if (!card) return;
+  if (state.paused || state.over) {
+    return;
+  }
+  const card = allCards.find(function (item) {
+    return item.id === cardId;
+  });
+  if (!card) {
+    return;
+  }
   if (state.elixir < card.cost) {
-    toast('Not enough elixir for ' + card.name + '.', 'warning');
+    toast('Not enough elixir for ' + card.name, 'error');
     return;
   }
   state.elixir -= card.cost;
   state.cardsPlayed += 1;
-  spawnUnit('player', card, lane);
-  cycleDeck(cardId);
+  spawnUnit(card, 'player', lane);
+  cycleCard(cardId);
   state.selectedTouchCardId = null;
-  selectedCardLabel.textContent = 'None';
-  updateHud();
   renderCards();
-  updateLaneAdvice(lane, 'player');
-  log('You deployed ' + card.name + ' to the ' + lane + ' lane.');
+  updateHud();
   playSound('deploy');
+  log('You deployed ' + card.name + ' into the ' + lane + ' lane.');
 }
 
-function enemyPlay() {
-  if (state.paused || state.over) return;
-  const affordable = allCards.filter(function (card) {
-    return card.cost <= 6;
+function cycleCard(cardId) {
+  const index = state.playerDeck.indexOf(cardId);
+  if (index >= 0) {
+    state.playerDeck.splice(index, 1);
+    state.playerDeck.push(cardId);
+  }
+}
+
+function enemyDeploy() {
+  const options = allCards.filter(function (card) {
+    return card.cost <= Math.min(6, 2 + Math.floor((120 - state.timeLeft) / 20));
   });
-  const card = affordable[Math.floor(Math.random() * affordable.length)];
+  const card = options[Math.floor(Math.random() * options.length)] || allCards[0];
   const lane = Math.random() > 0.5 ? 'left' : 'right';
   state.enemyCardsPlayed += 1;
-  spawnUnit('enemy', card, lane);
-  updateLaneAdvice(lane, 'enemy');
-  log('Enemy deployed ' + card.name + ' to the ' + lane + ' lane.');
+  spawnUnit(card, 'enemy', lane);
+  log('Enemy deployed ' + card.name + ' into the ' + lane + ' lane.');
 }
 
-function spawnUnit(side, card, lane) {
+function spawnUnit(card, side, lane) {
   const laneEl = document.querySelector('.' + lane + '-lane');
-  if (!laneEl) return;
+  const unitEl = document.createElement('div');
+  unitEl.className = 'unit ' + side;
+  unitEl.textContent = card.label;
+  laneEl.appendChild(unitEl);
+
   const unit = {
     id: state.nextUnitId++,
+    cardId: card.id,
     side: side,
     lane: lane,
-    cardId: card.id,
     hp: card.hp,
     maxHp: card.hp,
     damage: card.damage,
     speed: card.speed,
     range: card.range,
     attackRate: card.attackRate,
-    projectile: card.projectile,
-    projectileSpeed: card.projectileSpeed || 0,
+    projectile: !!card.projectile,
+    projectileSpeed: card.projectileSpeed || 3,
     splashRadius: card.splashRadius || 0,
+    stunDuration: card.stunDuration || 0,
     dashRange: card.dashRange || 0,
     dashSpeed: card.dashSpeed || 0,
-    stunDuration: card.stunDuration || 0,
     x: 50,
-    y: side === 'player' ? 84 : 16,
-    attackCooldown: 0,
-    stunnedFor: 0,
-    el: null,
-    hpFill: null
+    y: side === 'player' ? 82 : 18,
+    cooldown: 0,
+    stunned: 0,
+    element: unitEl
   };
 
-  const el = document.createElement('div');
-  el.className = 'unit ' + side + ' ' + card.id;
-  el.innerHTML = `<span>${card.label}</span><div class="hp-shell"><div class="hp-fill"></div></div>`;
-  laneEl.appendChild(el);
-  unit.el = el;
-  unit.hpFill = el.querySelector('.hp-fill');
   state.units.push(unit);
   positionUnit(unit);
-  updateLanePressure();
 }
 
 function positionUnit(unit) {
-  if (!unit.el) return;
-  unit.el.style.left = unit.x + '%';
-  unit.el.style.top = unit.y + '%';
-  unit.hpFill.style.width = Math.max(0, (unit.hp / unit.maxHp) * 100) + '%';
+  unit.element.style.left = unit.x + '%';
+  unit.element.style.top = unit.y + '%';
 }
 
-function tick() {
-  if (state.paused || state.over) return;
-  state.elixir = Math.min(state.maxElixir, state.elixir + 0.045);
-  updateHud();
-  updateUnits();
-  updateProjectiles();
-  cleanupUnits();
-  updateLanePressure();
-}
+function updateGame() {
+  if (state.paused || state.over) {
+    return;
+  }
 
-function updateUnits() {
+  state.elixir = Math.min(state.maxElixir, state.elixir + 0.02);
+
   state.units.forEach(function (unit) {
-    if (unit.stunnedFor > 0) {
-      unit.stunnedFor -= 0.12;
-      unit.el.classList.add('stunned');
+    if (unit.stunned > 0) {
+      unit.stunned -= 1 / 30;
+      unit.element.classList.add('stunned');
       return;
     }
-    unit.el.classList.remove('stunned');
-    unit.attackCooldown = Math.max(0, unit.attackCooldown - 0.12);
-    const target = findTarget(unit);
-    if (target) {
-      const distance = Math.abs(target.y - unit.y);
+
+    unit.element.classList.remove('stunned');
+    unit.cooldown = Math.max(0, unit.cooldown - 1 / 30);
+
+    const opponent = findOpponent(unit);
+    if (opponent) {
+      const distance = Math.abs(unit.y - opponent.y);
       if (distance <= unit.range) {
-        attackTarget(unit, target);
+        attackUnit(unit, opponent);
       } else {
-        moveToward(unit, target.y);
+        moveUnit(unit, unit.side === 'player' ? -1 : 1, unit.speed);
       }
     } else {
       const towerTarget = getTowerTarget(unit);
-      if (towerTarget.distance <= unit.range) {
-        attackTower(unit, towerTarget.key);
+      const distanceToTower = Math.abs(unit.y - towerTarget.y);
+      if (distanceToTower <= unit.range) {
+        attackTower(unit, towerTarget);
       } else {
-        moveToward(unit, towerTarget.y);
+        const dashBoost = unit.dashRange && distanceToTower < unit.dashRange ? unit.dashSpeed : unit.speed;
+        moveUnit(unit, unit.side === 'player' ? -1 : 1, dashBoost || unit.speed);
       }
     }
+
     positionUnit(unit);
   });
-}
 
-function moveToward(unit, targetY) {
-  const direction = unit.side === 'player' ? -1 : 1;
-  const speedBoost = unit.dashRange && Math.abs(targetY - unit.y) <= unit.dashRange ? unit.dashSpeed : unit.speed;
-  unit.el.classList.toggle('dashing', speedBoost === unit.dashSpeed && speedBoost !== 0);
-  unit.y += direction * speedBoost;
-  if (direction === -1) {
-    unit.y = Math.max(targetY, unit.y);
-  } else {
-    unit.y = Math.min(targetY, unit.y);
-  }
-}
-
-function findTarget(unit) {
-  const enemies = state.units.filter(function (other) {
-    return other.side !== unit.side && other.lane === unit.lane;
+  state.projectiles.forEach(updateProjectile);
+  state.units = state.units.filter(function (unit) {
+    return unit.hp > 0;
   });
-  if (!enemies.length) return null;
-  enemies.sort(function (a, b) {
-    return Math.abs(a.y - unit.y) - Math.abs(b.y - unit.y);
-  });
-  return enemies[0];
-}
-
-function attackTarget(unit, target) {
-  if (unit.attackCooldown > 0) return;
-  unit.attackCooldown = unit.attackRate;
-  unit.el.classList.add('attacking');
-  setTimeout(function () {
-    if (unit.el) unit.el.classList.remove('attacking');
-  }, 120);
-  if (unit.projectile) {
-    spawnProjectile(unit, target);
-  } else {
-    damageUnit(target, unit.damage, unit);
-  }
-  playSound('hit');
-}
-
-function spawnProjectile(unit, target) {
-  const laneEl = document.querySelector('.' + unit.lane + '-lane');
-  const projectile = {
-    id: state.nextProjectileId++,
-    side: unit.side,
-    lane: unit.lane,
-    x: unit.x,
-    y: unit.y,
-    speed: unit.projectileSpeed || 3,
-    damage: unit.damage,
-    splashRadius: unit.splashRadius,
-    targetId: target.id,
-    source: unit,
-    el: document.createElement('div')
-  };
-  projectile.el.className = 'projectile ' + unit.side;
-  laneEl.appendChild(projectile.el);
-  state.projectiles.push(projectile);
-  positionProjectile(projectile);
-}
-
-function positionProjectile(projectile) {
-  projectile.el.style.left = projectile.x + '%';
-  projectile.el.style.top = projectile.y + '%';
-}
-
-function updateProjectiles() {
   state.projectiles = state.projectiles.filter(function (projectile) {
-    const target = state.units.find(function (unit) {
-      return unit.id === projectile.targetId;
-    });
-    if (!target) {
-      projectile.el.remove();
-      return false;
-    }
-    const dy = target.y - projectile.y;
-    if (Math.abs(dy) <= projectile.speed) {
-      projectile.y = target.y;
-      positionProjectile(projectile);
-      damageUnit(target, projectile.damage, projectile.source, projectile.splashRadius);
-      projectile.el.remove();
-      return false;
-    }
-    projectile.y += Math.sign(dy) * projectile.speed;
-    positionProjectile(projectile);
-    return true;
+    return !projectile.done;
+  });
+  updateHud();
+}
+
+function moveUnit(unit, direction, speed) {
+  unit.y += direction * speed * 0.22;
+}
+
+function findOpponent(unit) {
+  return state.units.find(function (other) {
+    return other.side !== unit.side && other.lane === unit.lane && Math.abs(other.y - unit.y) < 26;
   });
 }
 
-function damageUnit(target, amount, attacker, splashRadius) {
-  target.hp -= amount;
-  if (attacker && attacker.stunDuration) {
-    target.stunnedFor = attacker.stunDuration;
+function attackUnit(attacker, defender) {
+  if (attacker.cooldown > 0) {
+    return;
   }
-  if (splashRadius) {
-    state.units.forEach(function (unit) {
-      if (unit.side !== target.side || unit.id === target.id || unit.lane !== target.lane) return;
-      if (Math.abs(unit.y - target.y) <= splashRadius * 0.3) {
-        unit.hp -= Math.round(amount * 0.45);
+  attacker.cooldown = attacker.attackRate;
+  if (attacker.projectile) {
+    spawnProjectile(attacker, defender, false);
+  } else {
+    applyDamageToUnit(defender, attacker.damage, attacker.stunDuration);
+    pulseUnit(attacker.element);
+  }
+}
+
+function attackTower(attacker, towerTarget) {
+  if (attacker.cooldown > 0) {
+    return;
+  }
+  attacker.cooldown = attacker.attackRate;
+  if (attacker.projectile) {
+    spawnProjectile(attacker, towerTarget, true);
+  } else {
+    damageTower(towerTarget.side, towerTarget.key, attacker.damage);
+    pulseUnit(attacker.element);
+  }
+}
+
+function spawnProjectile(attacker, target, isTower) {
+  const laneEl = document.querySelector('.' + attacker.lane + '-lane');
+  const projectileEl = document.createElement('div');
+  projectileEl.className = 'projectile ' + attacker.side;
+  laneEl.appendChild(projectileEl);
+  state.projectiles.push({
+    id: state.nextProjectileId++,
+    attackerId: attacker.id,
+    lane: attacker.lane,
+    side: attacker.side,
+    x: attacker.x,
+    y: attacker.y,
+    target: target,
+    speed: attacker.projectileSpeed,
+    damage: attacker.damage,
+    splashRadius: attacker.splashRadius,
+    stunDuration: attacker.stunDuration,
+    isTower: isTower,
+    element: projectileEl,
+    done: false
+  });
+}
+
+function updateProjectile(projectile) {
+  if (projectile.done) {
+    return;
+  }
+  const targetY = projectile.isTower ? projectile.target.y : projectile.target.y;
+  const direction = targetY > projectile.y ? 1 : -1;
+  projectile.y += direction * projectile.speed * 0.32;
+  projectile.element.style.left = projectile.x + '%';
+  projectile.element.style.top = projectile.y + '%';
+  if (Math.abs(projectile.y - targetY) < 3) {
+    if (projectile.isTower) {
+      damageTower(projectile.target.side, projectile.target.key, projectile.damage);
+    } else if (projectile.target.hp > 0) {
+      applyDamageToUnit(projectile.target, projectile.damage, projectile.stunDuration);
+      if (projectile.splashRadius) {
+        applySplash(projectile);
       }
-    });
+    }
+    projectile.done = true;
+    projectile.element.remove();
   }
-  if (target.hp <= 0) {
-    target.hp = 0;
-    target.el.classList.add('defeated');
+}
+
+function applySplash(projectile) {
+  state.units.forEach(function (unit) {
+    if (unit.side !== projectile.side && unit.lane === projectile.lane && Math.abs(unit.y - projectile.y) < 10) {
+      applyDamageToUnit(unit, Math.round(projectile.damage * 0.55), 0);
+    }
+  });
+}
+
+function applyDamageToUnit(unit, damage, stunDuration) {
+  unit.hp -= damage;
+  if (stunDuration) {
+    unit.stunned = stunDuration;
   }
-  positionUnit(target);
+  pulseUnit(unit.element);
+  if (unit.hp <= 0) {
+    unit.element.classList.add('defeated');
+    setTimeout(function () {
+      unit.element.remove();
+    }, 180);
+  }
+}
+
+function pulseUnit(element) {
+  element.classList.add('pulse');
+  setTimeout(function () {
+    element.classList.remove('pulse');
+  }, 180);
 }
 
 function getTowerTarget(unit) {
-  const isPlayer = unit.side === 'player';
-  const towers = isPlayer ? state.enemyTowers : state.playerTowers;
-  const primaryKey = towers[unit.lane] > 0 ? unit.lane : 'king';
-  return {
-    key: primaryKey,
-    y: isPlayer ? (primaryKey === 'king' ? 20 : 12) : (primaryKey === 'king' ? 80 : 88),
-    distance: Math.abs((isPlayer ? (primaryKey === 'king' ? 20 : 12) : (primaryKey === 'king' ? 80 : 88)) - unit.y)
-  };
+  const targetSide = unit.side === 'player' ? 'enemy' : 'player';
+  const laneTowerHp = state[targetSide + 'Towers'][unit.lane];
+  if (laneTowerHp > 0) {
+    return { side: targetSide, key: unit.lane, y: targetSide === 'enemy' ? 12 : 88 };
+  }
+  return { side: targetSide, key: 'king', y: targetSide === 'enemy' ? 20 : 80 };
 }
 
-function attackTower(unit, key) {
-  if (unit.attackCooldown > 0) return;
-  unit.attackCooldown = unit.attackRate;
-  const targetPool = unit.side === 'player' ? state.enemyTowers : state.playerTowers;
-  targetPool[key] = Math.max(0, targetPool[key] - unit.damage);
-  playSound('tower');
-  updateHud();
-  checkForGameOver();
-}
-
-function cleanupUnits() {
-  state.units = state.units.filter(function (unit) {
-    if (unit.hp > 0) {
-      return true;
-    }
-    setTimeout(function () {
-      if (unit.el) unit.el.remove();
-    }, 150);
-    return false;
-  });
-}
-
-function stepTimer() {
-  if (state.paused || state.over) return;
-  state.timeLeft -= 1;
-  if (state.timeLeft <= 0) {
-    state.timeLeft = 0;
+function damageTower(side, key, damage) {
+  const towers = side === 'player' ? state.playerTowers : state.enemyTowers;
+  towers[key] = Math.max(0, towers[key] - damage);
+  playSound('hit');
+  if (towers.key === 0) {
     finishMatch();
   }
-  updateHud();
 }
 
 function finishMatch() {
-  if (state.over) return;
+  if (state.over) {
+    return;
+  }
   state.over = true;
   state.paused = true;
   clearLoops();
@@ -787,158 +759,163 @@ function finishMatch() {
   const enemyTotal = state.enemyTowers.left + state.enemyTowers.right + state.enemyTowers.king;
   const outcome = playerTotal === enemyTotal ? 'Draw' : playerTotal > enemyTotal ? 'Victory' : 'Defeat';
   state.lastOutcome = outcome;
-  saveBestSession(outcome, playerTotal, enemyTotal);
-  updateBestSessionUi();
+  saveBestSession(outcome, enemyTotal);
+  updateResultOverlay(outcome, playerTotal, enemyTotal);
+  showOverlay(resultOverlay);
+  setStatus('Match complete');
+  toast(outcome + '. Tap Play Again to jump back in.', outcome === 'Defeat' ? 'error' : 'success');
+}
 
+function updateResultOverlay(outcome, playerTotal, enemyTotal) {
   resultTitle.textContent = outcome;
-  resultOutcome.textContent = outcome;
   resultSummary.textContent = outcome === 'Victory'
-    ? 'You protected more tower health than the enemy.'
+    ? 'You kept more tower health than the enemy fortress.'
     : outcome === 'Defeat'
-      ? 'The enemy fortress held stronger this round.'
-      : 'Both sides finished with equal tower health.';
+      ? 'The enemy held the health advantage this time.'
+      : 'Both sides finished with the same total tower health.';
+  resultOutcome.textContent = outcome;
   resultPlayerHp.textContent = String(playerTotal);
   resultEnemyHp.textContent = String(enemyTotal);
   resultCardsPlayed.textContent = String(state.cardsPlayed);
-  resultTime.textContent = formatTime(120 - state.timeLeft);
-  bestResultText.textContent = state.bestSession ? state.bestSession.label : 'No record yet';
-  showOverlay(resultOverlay);
-  log('Match finished with a ' + outcome + '.');
-}
-
-function checkForGameOver() {
-  if (state.enemyTowers.king <= 0 || state.playerTowers.king <= 0) {
-    finishMatch();
-  }
+  resultTime.textContent = formatTime(state.timeLeft);
+  bestResultText.textContent = state.bestSession ? state.bestSession.label : '-';
 }
 
 function updateHud() {
   timerEl.textContent = formatTime(state.timeLeft);
-  const elixirPercent = (state.elixir / state.maxElixir) * 100;
-  elixirFill.style.width = elixirPercent + '%';
+  elixirFill.style.width = state.elixir / state.maxElixir * 100 + '%';
   elixirText.textContent = Math.floor(state.elixir) + ' / ' + state.maxElixir;
-  nextCardLabel.textContent = getNextCard().name;
+  selectedCardLabel.textContent = state.selectedTouchCardId
+    ? allCards.find(function (card) { return card.id === state.selectedTouchCardId; }).name
+    : 'None';
+
   updateTowerBar('playerLeft', state.playerTowers.left, towerMax.left);
   updateTowerBar('playerRight', state.playerTowers.right, towerMax.right);
   updateTowerBar('playerKing', state.playerTowers.king, towerMax.king);
   updateTowerBar('enemyLeft', state.enemyTowers.left, towerMax.left);
   updateTowerBar('enemyRight', state.enemyTowers.right, towerMax.right);
   updateTowerBar('enemyKing', state.enemyTowers.king, towerMax.king);
+  updateLaneAdvice();
 }
 
 function updateTowerBar(prefix, value, max) {
-  document.getElementById(prefix + 'Hp').style.width = (value / max) * 100 + '%';
-  document.getElementById(prefix + 'Text').textContent = String(Math.round(value));
+  document.getElementById(prefix + 'Hp').style.width = value / max * 100 + '%';
+  document.getElementById(prefix + 'Text').textContent = String(value);
 }
 
-function updateLaneAdvice(lane, side) {
-  laneAdvice.textContent = (side === 'player' ? 'You are pressuring the ' : 'Enemy pressure rising on the ') + lane + ' lane';
+function formatTime(seconds) {
+  const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  return mins + ':' + secs;
 }
 
-function updateLanePressure() {
-  const left = laneBalance('left');
-  const right = laneBalance('right');
-  leftLanePressure.textContent = left;
-  rightLanePressure.textContent = right;
+function updateBestSessionUi() {
+  bestSessionLabel.textContent = state.bestSession ? state.bestSession.label : 'No record yet';
 }
 
-function laneBalance(lane) {
-  const playerPower = state.units.filter(function (unit) {
-    return unit.side === 'player' && unit.lane === lane;
-  }).length;
-  const enemyPower = state.units.filter(function (unit) {
-    return unit.side === 'enemy' && unit.lane === lane;
-  }).length;
-  if (playerPower === enemyPower) return 'Balanced';
-  return playerPower > enemyPower ? 'Player edge' : 'Enemy edge';
+function rotateTip(forceAdvance) {
+  if (forceAdvance) {
+    state.tipIndex = (state.tipIndex + 1) % tipRotation.length;
+  }
+  tipText.textContent = tipRotation[state.tipIndex];
+  state.tipIndex = (state.tipIndex + 1) % tipRotation.length;
 }
 
 function setStatus(text) {
   statusPill.textContent = text;
 }
 
-function rotateTip(force) {
-  if (!force && state.tipIndex === 0) {
-    tipText.textContent = tipRotation[0];
-    return;
-  }
-  state.tipIndex = (state.tipIndex + 1) % tipRotation.length;
-  tipText.textContent = tipRotation[state.tipIndex];
-}
-
-function log(message) {
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.textContent = message;
-  battleLog.prepend(entry);
-  while (battleLog.children.length > 6) {
+function log(text) {
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.textContent = text;
+  battleLog.prepend(line);
+  while (battleLog.children.length > 8) {
     battleLog.removeChild(battleLog.lastChild);
   }
 }
 
-function toast(message, tone) {
+function toast(text, type) {
   const item = document.createElement('div');
-  item.className = 'toast ' + (tone || 'success');
-  item.textContent = message;
+  item.className = 'toast ' + (type || 'success');
+  item.textContent = text;
   toastStack.appendChild(item);
   setTimeout(function () {
-    item.remove();
+    item.classList.add('visible');
+  }, 10);
+  setTimeout(function () {
+    item.classList.remove('visible');
+    setTimeout(function () {
+      item.remove();
+    }, 200);
   }, 2400);
 }
 
-function formatTime(totalSeconds) {
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-  const seconds = String(totalSeconds % 60).padStart(2, '0');
-  return minutes + ':' + seconds;
+function showOverlay(el) {
+  el.classList.add('active');
+  el.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('overlay-open');
+  appRoot.classList.add('dimmed');
 }
 
-function playSound(type) {
-  if (!state.soundEnabled) return;
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    audioCtx = new AudioContextClass();
+function hideOverlay(el) {
+  el.classList.remove('active');
+  el.setAttribute('aria-hidden', 'true');
+  const anyActive = [startOverlay, pauseOverlay, resultOverlay].some(function (overlay) {
+    return overlay.classList.contains('active');
+  });
+  if (!anyActive) {
+    document.body.classList.remove('overlay-open');
+    appRoot.classList.remove('dimmed');
   }
-  const osc = audioCtx.createOscillator();
+}
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  soundToggleBtn.textContent = 'Sound: ' + (state.soundEnabled ? 'On' : 'Off');
+}
+
+function playSound(kind) {
+  if (!state.soundEnabled) {
+    return;
+  }
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const oscillator = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  const frequencies = {
-    deploy: 440,
-    hit: 320,
-    tower: 220,
-    tick: 660
-  };
-  osc.frequency.value = frequencies[type] || 300;
-  osc.type = type === 'tower' ? 'square' : 'sine';
-  gain.gain.value = 0.03;
-  osc.connect(gain);
+  oscillator.type = kind === 'hit' ? 'square' : 'sine';
+  oscillator.frequency.value = kind === 'deploy' ? 420 : kind === 'hit' ? 180 : 520;
+  gain.gain.value = 0.02;
+  oscillator.connect(gain);
   gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.08);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.08);
+}
+
+function clearArenaUnits() {
+  document.querySelectorAll('.unit, .projectile').forEach(function (node) {
+    node.remove();
+  });
 }
 
 function loadBestSession() {
   try {
-    const raw = localStorage.getItem('lincolnPrototypeBestSession');
+    const raw = localStorage.getItem('lincoln-best-session');
     return raw ? JSON.parse(raw) : null;
   } catch (error) {
     return null;
   }
 }
 
-function saveBestSession(outcome, playerTotal, enemyTotal) {
-  const score = playerTotal - enemyTotal;
-  const currentBest = state.bestSession;
-  if (!currentBest || score > currentBest.score) {
-    state.bestSession = {
-      label: outcome + ' (' + score + ')',
-      score: score
-    };
-    localStorage.setItem('lincolnPrototypeBestSession', JSON.stringify(state.bestSession));
+function saveBestSession(outcome, enemyTotal) {
+  const score = towerMax.left + towerMax.right + towerMax.king - enemyTotal;
+  const label = outcome + ' - ' + score + ' damage';
+  if (!state.bestSession || score > state.bestSession.score) {
+    state.bestSession = { score: score, label: label };
+    localStorage.setItem('lincoln-best-session', JSON.stringify(state.bestSession));
+    updateBestSessionUi();
   }
-}
-
-function updateBestSessionUi() {
-  bestSessionLabel.textContent = state.bestSession ? state.bestSession.label : 'No record yet';
 }
 
 init();
