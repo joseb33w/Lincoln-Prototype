@@ -116,7 +116,6 @@ const elixirText = document.getElementById('elixirText');
 const restartBtn = document.getElementById('restartBtn');
 const soundToggleBtn = document.getElementById('soundToggleBtn');
 const statusPill = document.getElementById('statusPill');
-const nextCardLabel = document.getElementById('nextCardLabel');
 const selectedCardLabel = document.getElementById('selectedCardLabel');
 const laneAdvice = document.getElementById('laneAdvice');
 const bestSessionLabel = document.getElementById('bestSessionLabel');
@@ -126,16 +125,10 @@ const leftLanePressure = document.getElementById('leftLanePressure');
 const rightLanePressure = document.getElementById('rightLanePressure');
 const toastStack = document.getElementById('toastStack');
 const startOverlay = document.getElementById('startOverlay');
-const instructionsOverlay = document.getElementById('instructionsOverlay');
 const pauseOverlay = document.getElementById('pauseOverlay');
 const resultOverlay = document.getElementById('resultOverlay');
 const startBattleBtn = document.getElementById('startBattleBtn');
-const howToPlayBtn = document.getElementById('howToPlayBtn');
-const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
-const backFromInstructionsBtn = document.getElementById('backFromInstructionsBtn');
-const playFromInstructionsBtn = document.getElementById('playFromInstructionsBtn');
 const pauseBtn = document.getElementById('pauseBtn');
-const tipsBtn = document.getElementById('tipsBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const restartFromPauseBtn = document.getElementById('restartFromPauseBtn');
 const playAgainBtn = document.getElementById('playAgainBtn');
@@ -149,12 +142,12 @@ const resultCardsPlayed = document.getElementById('resultCardsPlayed');
 const resultTime = document.getElementById('resultTime');
 const bestResultText = document.getElementById('bestResultText');
 const dropLanes = Array.from(document.querySelectorAll('.drop-lane'));
-const quickTipChips = Array.from(document.querySelectorAll('.quick-tip-chip'));
 
 let gameLoop = null;
 let timerLoop = null;
 let enemyLoop = null;
 let audioCtx = null;
+let tipInterval = null;
 
 function init() {
   bindLaneDrops();
@@ -166,32 +159,12 @@ function init() {
   setStatus('Press Start Battle to begin');
   log('Welcome to Lincoln Prototype. Start the match when you are ready.');
   clearLoops();
+  startTipLoop();
 }
 
 function bindUi() {
   startBattleBtn.addEventListener('click', startBattleFlow);
-  howToPlayBtn.addEventListener('click', openInstructions);
-  closeInstructionsBtn.addEventListener('click', closeInstructions);
-  backFromInstructionsBtn.addEventListener('click', closeInstructions);
-  playFromInstructionsBtn.addEventListener('click', function () {
-    closeInstructions();
-    startBattleFlow();
-  });
-  instructionsOverlay.addEventListener('click', function (event) {
-    if (event.target === instructionsOverlay) {
-      closeInstructions();
-    }
-  });
-  quickTipChips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      toast(chip.textContent, 'success');
-    });
-  });
   pauseBtn.addEventListener('click', togglePause);
-  tipsBtn.addEventListener('click', function () {
-    rotateTip(true);
-    toast(tipText.textContent, 'success');
-  });
   resumeBtn.addEventListener('click', resumeFromPause);
   restartFromPauseBtn.addEventListener('click', restartMatch);
   playAgainBtn.addEventListener('click', restartMatch);
@@ -203,6 +176,17 @@ function bindUi() {
   document.addEventListener('keydown', handleKeydown);
   arena.addEventListener('pointermove', handleArenaParallax);
   arena.addEventListener('pointerleave', resetArenaParallax);
+}
+
+function startTipLoop() {
+  if (tipInterval) {
+    clearInterval(tipInterval);
+  }
+  tipInterval = setInterval(function () {
+    if (!state.paused && !state.over) {
+      rotateTip();
+    }
+  }, 5000);
 }
 
 function handleArenaParallax(event) {
@@ -219,10 +203,6 @@ function resetArenaParallax() {
 function handleKeydown(event) {
   const key = event.key.toLowerCase();
   if (key === 'escape') {
-    if (instructionsOverlay.classList.contains('active')) {
-      closeInstructions();
-      return;
-    }
     if (resultOverlay.classList.contains('active')) {
       hideOverlay(resultOverlay);
       return;
@@ -258,21 +238,7 @@ function handleKeydown(event) {
   }
 }
 
-function openInstructions() {
-  rotateTip(true);
-  hideOverlay(startOverlay);
-  showOverlay(instructionsOverlay);
-  setStatus('Reading instructions');
-}
-
-function closeInstructions() {
-  hideOverlay(instructionsOverlay);
-  showOverlay(startOverlay);
-  setStatus('Press Start Battle to begin');
-}
-
 function startBattleFlow() {
-  hideOverlay(instructionsOverlay);
   hideOverlay(startOverlay);
   resetState();
   renderCards();
@@ -313,23 +279,45 @@ function startCountdown() {
     setStatus('Battle live');
     log('Match started. Drag a card into a lane or tap-select one on mobile, then tap a glowing lane.');
     toast('Battle started. Good luck.', 'success');
-  }, 800);
+  }, 700);
 }
 
-function beginLoops() {
-  clearLoops();
-  gameLoop = setInterval(tick, 120);
-  timerLoop = setInterval(stepTimer, 1000);
-  enemyLoop = setInterval(enemyPlay, 2200);
+function togglePause() {
+  if (state.over || state.countdownActive) {
+    return;
+  }
+  if (state.paused) {
+    resumeFromPause();
+  } else {
+    state.paused = true;
+    showOverlay(pauseOverlay);
+    setStatus('Match paused');
+  }
 }
 
-function clearLoops() {
-  [gameLoop, timerLoop, enemyLoop].forEach(function (loop) {
-    if (loop) clearInterval(loop);
-  });
+function resumeFromPause() {
+  if (state.over) {
+    return;
+  }
+  hideOverlay(pauseOverlay);
+  state.paused = false;
+  setStatus('Battle live');
+}
+
+function restartMatch() {
+  hideOverlay(pauseOverlay);
+  hideOverlay(resultOverlay);
+  showOverlay(startOverlay);
+  resetState();
+  clearArenaUnits();
+  renderCards();
+  updateHud();
+  setStatus('Press Start Battle to begin');
+  log('Match reset. Start again when ready.');
 }
 
 function resetState() {
+  clearLoops();
   state.timeLeft = 120;
   state.elixir = 5;
   state.units = [];
@@ -348,9 +336,37 @@ function resetState() {
   state.cardsPlayed = 0;
   state.enemyCardsPlayed = 0;
   state.lastOutcome = null;
+  state.countdownActive = false;
   state.resultOpen = false;
   state.hoverLane = null;
-  resetArenaParallax();
+}
+
+function beginLoops() {
+  clearLoops();
+  gameLoop = setInterval(updateGame, 1000 / 30);
+  timerLoop = setInterval(function () {
+    if (state.paused || state.over) {
+      return;
+    }
+    state.timeLeft -= 1;
+    if (state.timeLeft <= 0) {
+      state.timeLeft = 0;
+      finishMatch();
+    }
+    updateHud();
+  }, 1000);
+  enemyLoop = setInterval(function () {
+    if (state.paused || state.over) {
+      return;
+    }
+    enemyDeploy();
+  }, 1800);
+}
+
+function clearLoops() {
+  clearInterval(gameLoop);
+  clearInterval(timerLoop);
+  clearInterval(enemyLoop);
 }
 
 function bindLaneDrops() {
@@ -359,191 +375,546 @@ function bindLaneDrops() {
       event.preventDefault();
       laneEl.classList.add('drag-over');
       state.hoverLane = laneEl.dataset.lane;
+      updateLaneAdvice();
     });
     laneEl.addEventListener('dragleave', function () {
       laneEl.classList.remove('drag-over');
       state.hoverLane = null;
+      updateLaneAdvice();
     });
     laneEl.addEventListener('drop', function (event) {
       event.preventDefault();
       laneEl.classList.remove('drag-over');
+      if (state.draggingCardId) {
+        deployPlayer(state.draggingCardId, laneEl.dataset.lane);
+      }
       state.hoverLane = null;
-      const cardId = event.dataTransfer.getData('text/plain') || state.draggingCardId;
-      if (cardId) deployPlayer(cardId, laneEl.dataset.lane);
+      updateLaneAdvice();
     });
     laneEl.addEventListener('click', function () {
       if (state.selectedTouchCardId) {
         deployPlayer(state.selectedTouchCardId, laneEl.dataset.lane);
-      } else {
-        toast('Select a card first, then tap a lane.', 'info');
       }
-    });
-    laneEl.addEventListener('pointerenter', function () {
-      state.hoverLane = laneEl.dataset.lane;
-      updateLaneAdvice();
-    });
-    laneEl.addEventListener('pointerleave', function () {
-      state.hoverLane = null;
-      updateLaneAdvice();
-    });
-  });
-}
-
-function updateLaneAdvice() {
-  if (state.hoverLane) {
-    laneAdvice.textContent = 'Deploying pressure to the ' + state.hoverLane + ' lane';
-    return;
-  }
-  laneAdvice.textContent = 'Open the battle with either lane';
-}
-
-function renderCards() {
-  if (!cardsEl) return;
-  const hand = getHandCards();
-  cardsEl.innerHTML = hand.map(function (card) {
-    const selected = state.selectedTouchCardId === card.id ? ' selected' : '';
-    return '<button class="card' + selected + '" data-card-id="' + card.id + '" draggable="true">'
-      + '<strong>' + card.name + '</strong>'
-      + '<span>Cost: ' + card.cost + '</span>'
-      + '<span>' + card.description + '</span>'
-      + '<span>Ability: ' + card.abilityLabel + '</span>'
-      + '</button>';
-  }).join('');
-
-  Array.from(cardsEl.querySelectorAll('.card')).forEach(function (cardEl) {
-    const cardId = cardEl.dataset.cardId;
-    cardEl.addEventListener('click', function () {
-      toggleTouchSelection(cardId);
-    });
-    cardEl.addEventListener('dragstart', function (event) {
-      state.draggingCardId = cardId;
-      event.dataTransfer.setData('text/plain', cardId);
-    });
-    cardEl.addEventListener('dragend', function () {
-      state.draggingCardId = null;
-      dropLanes.forEach(function (laneEl) {
-        laneEl.classList.remove('drag-over');
-      });
     });
   });
 }
 
 function getHandCards() {
-  return defaultDeckOrder.map(function (id) {
-    return allCards.find(function (card) { return card.id === id; });
+  return state.playerDeck.map(function (cardId) {
+    return allCards.find(function (card) {
+      return card.id === cardId;
+    });
   });
+}
+
+function renderCards() {
+  cardsEl.innerHTML = '';
+  getHandCards().forEach(function (card, index) {
+    const cardEl = document.createElement('button');
+    cardEl.className = 'card';
+    cardEl.draggable = true;
+    cardEl.type = 'button';
+    cardEl.innerHTML =
+      '<div class="card-top"><span class="card-label">' + card.label + '</span><span class="card-cost">' + card.cost + '</span></div>' +
+      '<h3>' + card.name + '</h3>' +
+      '<p>' + card.description + '</p>' +
+      '<div class="card-meta"><span>' + card.abilityLabel + '</span><strong>' + card.damage + ' dmg</strong></div>';
+
+    if (state.selectedTouchCardId === card.id) {
+      cardEl.classList.add('selected');
+    }
+
+    cardEl.addEventListener('dragstart', function () {
+      state.draggingCardId = card.id;
+      cardEl.classList.add('dragging');
+    });
+
+    cardEl.addEventListener('dragend', function () {
+      state.draggingCardId = null;
+      cardEl.classList.remove('dragging');
+    });
+
+    cardEl.addEventListener('click', function () {
+      toggleTouchSelection(card.id);
+    });
+
+    cardEl.addEventListener('mouseenter', function () {
+      state.hoverLane = recommendLane();
+      highlightRecommendedLane();
+      updateLaneAdvice();
+    });
+
+    cardEl.addEventListener('mouseleave', function () {
+      state.hoverLane = null;
+      highlightRecommendedLane();
+      updateLaneAdvice();
+    });
+
+    cardEl.setAttribute('aria-label', card.name + ', cost ' + card.cost + ', slot ' + (index + 1));
+    cardsEl.appendChild(cardEl);
+  });
+  highlightRecommendedLane();
+  updateLaneAdvice();
 }
 
 function toggleTouchSelection(cardId) {
   state.selectedTouchCardId = state.selectedTouchCardId === cardId ? null : cardId;
-  const selectedCard = allCards.find(function (card) { return card.id === state.selectedTouchCardId; });
-  selectedCardLabel.textContent = selectedCard ? selectedCard.name : 'None';
   renderCards();
+  updateHud();
+}
+
+function recommendLane() {
+  const leftPressure = state.enemyTowers.left - state.playerTowers.left;
+  const rightPressure = state.enemyTowers.right - state.playerTowers.right;
+  return leftPressure > rightPressure ? 'left' : 'right';
+}
+
+function highlightRecommendedLane() {
+  const recommended = recommendLane();
+  dropLanes.forEach(function (laneEl) {
+    laneEl.classList.toggle('recommended', laneEl.dataset.lane === recommended);
+    laneEl.classList.toggle('touch-target', !!state.selectedTouchCardId);
+  });
+}
+
+function updateLaneAdvice() {
+  const recommended = recommendLane();
+  const activeLane = state.hoverLane || recommended;
+  laneAdvice.textContent = (activeLane === 'left' ? 'Left lane' : 'Right lane') + ' is the best pressure point';
+  leftLanePressure.textContent = activeLane === 'left' ? 'Priority' : 'Watch';
+  rightLanePressure.textContent = activeLane === 'right' ? 'Priority' : 'Watch';
 }
 
 function deployPlayer(cardId, lane) {
-  const card = allCards.find(function (item) { return item.id === cardId; });
-  if (!card) return;
+  if (state.paused || state.over) {
+    return;
+  }
+  const card = allCards.find(function (item) {
+    return item.id === cardId;
+  });
+  if (!card) {
+    return;
+  }
   if (state.elixir < card.cost) {
-    toast('Not enough elixir for ' + card.name + '.', 'error');
+    toast('Not enough elixir for ' + card.name, 'error');
     return;
   }
   state.elixir -= card.cost;
   state.cardsPlayed += 1;
+  spawnUnit(card, 'player', lane);
+  cycleCard(cardId);
   state.selectedTouchCardId = null;
-  selectedCardLabel.textContent = 'None';
-  laneAdvice.textContent = 'Pressure sent to the ' + lane + ' lane';
-  playSound('deploy');
   renderCards();
   updateHud();
+  playSound('deploy');
   log('You deployed ' + card.name + ' into the ' + lane + ' lane.');
 }
 
-function enemyPlay() {}
-function tick() {}
-function stepTimer() {}
-function clearArenaUnits() {}
-function updateHud() {
-  if (elixirFill) {
-    elixirFill.style.width = (state.elixir / state.maxElixir * 100) + '%';
-  }
-  if (elixirText) {
-    elixirText.textContent = state.elixir + ' / ' + state.maxElixir;
-  }
-  updateLaneAdvice();
-}
-function updateBestSessionUi() {
-  if (bestSessionLabel) {
-    bestSessionLabel.textContent = state.bestSession || 'No record yet';
+function cycleCard(cardId) {
+  const index = state.playerDeck.indexOf(cardId);
+  if (index >= 0) {
+    state.playerDeck.splice(index, 1);
+    state.playerDeck.push(cardId);
   }
 }
-function rotateTip(force) {
-  state.tipIndex = force ? (state.tipIndex + 1) % tipRotation.length : state.tipIndex;
-  if (tipText) tipText.textContent = tipRotation[state.tipIndex];
+
+function enemyDeploy() {
+  const options = allCards.filter(function (card) {
+    return card.cost <= Math.min(6, 2 + Math.floor((120 - state.timeLeft) / 20));
+  });
+  const card = options[Math.floor(Math.random() * options.length)] || allCards[0];
+  const lane = Math.random() > 0.5 ? 'left' : 'right';
+  state.enemyCardsPlayed += 1;
+  spawnUnit(card, 'enemy', lane);
+  log('Enemy deployed ' + card.name + ' into the ' + lane + ' lane.');
 }
-function setStatus(text) {
-  if (statusPill) statusPill.textContent = text;
+
+function spawnUnit(card, side, lane) {
+  const laneEl = document.querySelector('.' + lane + '-lane');
+  const unitEl = document.createElement('div');
+  unitEl.className = 'unit ' + side;
+  unitEl.textContent = card.label;
+  laneEl.appendChild(unitEl);
+
+  const unit = {
+    id: state.nextUnitId++,
+    cardId: card.id,
+    side: side,
+    lane: lane,
+    hp: card.hp,
+    maxHp: card.hp,
+    damage: card.damage,
+    speed: card.speed,
+    range: card.range,
+    attackRate: card.attackRate,
+    projectile: !!card.projectile,
+    projectileSpeed: card.projectileSpeed || 3,
+    splashRadius: card.splashRadius || 0,
+    stunDuration: card.stunDuration || 0,
+    dashRange: card.dashRange || 0,
+    dashSpeed: card.dashSpeed || 0,
+    x: 50,
+    y: side === 'player' ? 82 : 18,
+    cooldown: 0,
+    stunned: 0,
+    element: unitEl
+  };
+
+  state.units.push(unit);
+  positionUnit(unit);
 }
-function log(text) {
-  if (battleLog) {
-    battleLog.innerHTML = '<p>' + text + '</p>' + battleLog.innerHTML;
-  }
+
+function positionUnit(unit) {
+  unit.element.style.left = unit.x + '%';
+  unit.element.style.top = unit.y + '%';
 }
-function toast(text, type) {
-  if (!toastStack) return;
-  const el = document.createElement('div');
-  el.className = 'toast ' + (type || 'info');
-  el.textContent = text;
-  toastStack.appendChild(el);
-  setTimeout(function () {
-    el.remove();
-  }, 2200);
-}
-function togglePause() {
-  if (state.over || state.countdownActive) return;
-  if (pauseOverlay.classList.contains('active')) {
-    resumeFromPause();
+
+function updateGame() {
+  if (state.paused || state.over) {
     return;
   }
-  showOverlay(pauseOverlay);
+
+  state.elixir = Math.min(state.maxElixir, state.elixir + 0.02);
+
+  state.units.forEach(function (unit) {
+    if (unit.stunned > 0) {
+      unit.stunned -= 1 / 30;
+      unit.element.classList.add('stunned');
+      return;
+    }
+
+    unit.element.classList.remove('stunned');
+    unit.cooldown = Math.max(0, unit.cooldown - 1 / 30);
+
+    const opponent = findOpponent(unit);
+    if (opponent) {
+      const distance = Math.abs(unit.y - opponent.y);
+      if (distance <= unit.range) {
+        attackUnit(unit, opponent);
+      } else {
+        moveUnit(unit, unit.side === 'player' ? -1 : 1, unit.speed);
+      }
+    } else {
+      const towerTarget = getTowerTarget(unit);
+      const distanceToTower = Math.abs(unit.y - towerTarget.y);
+      if (distanceToTower <= unit.range) {
+        attackTower(unit, towerTarget);
+      } else {
+        const dashBoost = unit.dashRange && distanceToTower < unit.dashRange ? unit.dashSpeed : unit.speed;
+        moveUnit(unit, unit.side === 'player' ? -1 : 1, dashBoost || unit.speed);
+      }
+    }
+
+    positionUnit(unit);
+  });
+
+  state.projectiles.forEach(updateProjectile);
+  state.units = state.units.filter(function (unit) {
+    return unit.hp > 0;
+  });
+  state.projectiles = state.projectiles.filter(function (projectile) {
+    return !projectile.done;
+  });
+  updateHud();
 }
-function resumeFromPause() {
-  hideOverlay(pauseOverlay);
+
+function moveUnit(unit, direction, speed) {
+  unit.y += direction * speed * 0.22;
 }
-function restartMatch() {
-  hideOverlay(pauseOverlay);
-  hideOverlay(resultOverlay);
-  startBattleFlow();
+
+function findOpponent(unit) {
+  return state.units.find(function (other) {
+    return other.side !== unit.side && other.lane === unit.lane && Math.abs(other.y - unit.y) < 26;
+  });
 }
-function toggleSound() {
-  state.soundEnabled = !state.soundEnabled;
-  if (soundToggleBtn) soundToggleBtn.textContent = 'Sound: ' + (state.soundEnabled ? 'On' : 'Off');
+
+function attackUnit(attacker, defender) {
+  if (attacker.cooldown > 0) {
+    return;
+  }
+  attacker.cooldown = attacker.attackRate;
+  if (attacker.projectile) {
+    spawnProjectile(attacker, defender, false);
+  } else {
+    applyDamageToUnit(defender, attacker.damage, attacker.stunDuration);
+    pulseUnit(attacker.element);
+  }
 }
-function playSound() {}
-function showOverlay(overlay) {
-  if (!overlay) return;
-  overlay.classList.add('active');
-  overlay.setAttribute('aria-hidden', 'false');
+
+function attackTower(attacker, towerTarget) {
+  if (attacker.cooldown > 0) {
+    return;
+  }
+  attacker.cooldown = attacker.attackRate;
+  if (attacker.projectile) {
+    spawnProjectile(attacker, towerTarget, true);
+  } else {
+    damageTower(towerTarget.side, towerTarget.key, attacker.damage);
+    pulseUnit(attacker.element);
+  }
+}
+
+function spawnProjectile(attacker, target, isTower) {
+  const laneEl = document.querySelector('.' + attacker.lane + '-lane');
+  const projectileEl = document.createElement('div');
+  projectileEl.className = 'projectile ' + attacker.side;
+  laneEl.appendChild(projectileEl);
+  state.projectiles.push({
+    id: state.nextProjectileId++,
+    attackerId: attacker.id,
+    lane: attacker.lane,
+    side: attacker.side,
+    x: attacker.x,
+    y: attacker.y,
+    target: target,
+    speed: attacker.projectileSpeed,
+    damage: attacker.damage,
+    splashRadius: attacker.splashRadius,
+    stunDuration: attacker.stunDuration,
+    isTower: isTower,
+    element: projectileEl,
+    done: false
+  });
+}
+
+function updateProjectile(projectile) {
+  if (projectile.done) {
+    return;
+  }
+  const targetY = projectile.isTower ? projectile.target.y : projectile.target.y;
+  const direction = targetY > projectile.y ? 1 : -1;
+  projectile.y += direction * projectile.speed * 0.32;
+  projectile.element.style.left = projectile.x + '%';
+  projectile.element.style.top = projectile.y + '%';
+  if (Math.abs(projectile.y - targetY) < 3) {
+    if (projectile.isTower) {
+      damageTower(projectile.target.side, projectile.target.key, projectile.damage);
+    } else if (projectile.target.hp > 0) {
+      applyDamageToUnit(projectile.target, projectile.damage, projectile.stunDuration);
+      if (projectile.splashRadius) {
+        applySplash(projectile);
+      }
+    }
+    projectile.done = true;
+    projectile.element.remove();
+  }
+}
+
+function applySplash(projectile) {
+  state.units.forEach(function (unit) {
+    if (unit.side !== projectile.side && unit.lane === projectile.lane && Math.abs(unit.y - projectile.y) < 10) {
+      applyDamageToUnit(unit, Math.round(projectile.damage * 0.55), 0);
+    }
+  });
+}
+
+function applyDamageToUnit(unit, damage, stunDuration) {
+  unit.hp -= damage;
+  if (stunDuration) {
+    unit.stunned = stunDuration;
+  }
+  pulseUnit(unit.element);
+  if (unit.hp <= 0) {
+    unit.element.classList.add('defeated');
+    setTimeout(function () {
+      unit.element.remove();
+    }, 180);
+  }
+}
+
+function pulseUnit(element) {
+  element.classList.add('pulse');
+  setTimeout(function () {
+    element.classList.remove('pulse');
+  }, 180);
+}
+
+function getTowerTarget(unit) {
+  const targetSide = unit.side === 'player' ? 'enemy' : 'player';
+  const laneTowerHp = state[targetSide + 'Towers'][unit.lane];
+  if (laneTowerHp > 0) {
+    return { side: targetSide, key: unit.lane, y: targetSide === 'enemy' ? 12 : 88 };
+  }
+  return { side: targetSide, key: 'king', y: targetSide === 'enemy' ? 20 : 80 };
+}
+
+function damageTower(side, key, damage) {
+  const towers = side === 'player' ? state.playerTowers : state.enemyTowers;
+  towers[key] = Math.max(0, towers[key] - damage);
+  playSound('hit');
+  if (towers.key === 0) {
+    finishMatch();
+  }
+}
+
+function finishMatch() {
+  if (state.over) {
+    return;
+  }
+  state.over = true;
+  state.paused = true;
+  clearLoops();
+
+  const playerTotal = state.playerTowers.left + state.playerTowers.right + state.playerTowers.king;
+  const enemyTotal = state.enemyTowers.left + state.enemyTowers.right + state.enemyTowers.king;
+  const outcome = playerTotal === enemyTotal ? 'Draw' : playerTotal > enemyTotal ? 'Victory' : 'Defeat';
+  state.lastOutcome = outcome;
+  saveBestSession(outcome, enemyTotal);
+  updateResultOverlay(outcome, playerTotal, enemyTotal);
+  showOverlay(resultOverlay);
+  setStatus('Match complete');
+  toast(outcome + '. Tap Play Again to jump back in.', outcome === 'Defeat' ? 'error' : 'success');
+}
+
+function updateResultOverlay(outcome, playerTotal, enemyTotal) {
+  resultTitle.textContent = outcome;
+  resultSummary.textContent = outcome === 'Victory'
+    ? 'You kept more tower health than the enemy fortress.'
+    : outcome === 'Defeat'
+      ? 'The enemy held the health advantage this time.'
+      : 'Both sides finished with the same total tower health.';
+  resultOutcome.textContent = outcome;
+  resultPlayerHp.textContent = String(playerTotal);
+  resultEnemyHp.textContent = String(enemyTotal);
+  resultCardsPlayed.textContent = String(state.cardsPlayed);
+  resultTime.textContent = formatTime(state.timeLeft);
+  bestResultText.textContent = state.bestSession ? state.bestSession.label : '-';
+}
+
+function updateHud() {
+  timerEl.textContent = formatTime(state.timeLeft);
+  elixirFill.style.width = state.elixir / state.maxElixir * 100 + '%';
+  elixirText.textContent = Math.floor(state.elixir) + ' / ' + state.maxElixir;
+  selectedCardLabel.textContent = state.selectedTouchCardId
+    ? allCards.find(function (card) { return card.id === state.selectedTouchCardId; }).name
+    : 'None';
+
+  updateTowerBar('playerLeft', state.playerTowers.left, towerMax.left);
+  updateTowerBar('playerRight', state.playerTowers.right, towerMax.right);
+  updateTowerBar('playerKing', state.playerTowers.king, towerMax.king);
+  updateTowerBar('enemyLeft', state.enemyTowers.left, towerMax.left);
+  updateTowerBar('enemyRight', state.enemyTowers.right, towerMax.right);
+  updateTowerBar('enemyKing', state.enemyTowers.king, towerMax.king);
+  updateLaneAdvice();
+}
+
+function updateTowerBar(prefix, value, max) {
+  document.getElementById(prefix + 'Hp').style.width = value / max * 100 + '%';
+  document.getElementById(prefix + 'Text').textContent = String(value);
+}
+
+function formatTime(seconds) {
+  const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  return mins + ':' + secs;
+}
+
+function updateBestSessionUi() {
+  bestSessionLabel.textContent = state.bestSession ? state.bestSession.label : 'No record yet';
+}
+
+function rotateTip(forceAdvance) {
+  if (forceAdvance) {
+    state.tipIndex = (state.tipIndex + 1) % tipRotation.length;
+  }
+  tipText.textContent = tipRotation[state.tipIndex];
+  state.tipIndex = (state.tipIndex + 1) % tipRotation.length;
+}
+
+function setStatus(text) {
+  statusPill.textContent = text;
+}
+
+function log(text) {
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.textContent = text;
+  battleLog.prepend(line);
+  while (battleLog.children.length > 8) {
+    battleLog.removeChild(battleLog.lastChild);
+  }
+}
+
+function toast(text, type) {
+  const item = document.createElement('div');
+  item.className = 'toast ' + (type || 'success');
+  item.textContent = text;
+  toastStack.appendChild(item);
+  setTimeout(function () {
+    item.classList.add('visible');
+  }, 10);
+  setTimeout(function () {
+    item.classList.remove('visible');
+    setTimeout(function () {
+      item.remove();
+    }, 200);
+  }, 2400);
+}
+
+function showOverlay(el) {
+  el.classList.add('active');
+  el.setAttribute('aria-hidden', 'false');
   document.body.classList.add('overlay-open');
   appRoot.classList.add('dimmed');
 }
-function hideOverlay(overlay) {
-  if (!overlay) return;
-  overlay.classList.remove('active');
-  overlay.setAttribute('aria-hidden', 'true');
-  const anyOpen = [startOverlay, instructionsOverlay, pauseOverlay, resultOverlay].some(function (item) {
-    return item.classList.contains('active');
+
+function hideOverlay(el) {
+  el.classList.remove('active');
+  el.setAttribute('aria-hidden', 'true');
+  const anyActive = [startOverlay, pauseOverlay, resultOverlay].some(function (overlay) {
+    return overlay.classList.contains('active');
   });
-  if (!anyOpen) {
+  if (!anyActive) {
     document.body.classList.remove('overlay-open');
     appRoot.classList.remove('dimmed');
   }
 }
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  soundToggleBtn.textContent = 'Sound: ' + (state.soundEnabled ? 'On' : 'Off');
+}
+
+function playSound(kind) {
+  if (!state.soundEnabled) {
+    return;
+  }
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  const oscillator = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  oscillator.type = kind === 'hit' ? 'square' : 'sine';
+  oscillator.frequency.value = kind === 'deploy' ? 420 : kind === 'hit' ? 180 : 520;
+  gain.gain.value = 0.02;
+  oscillator.connect(gain);
+  gain.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.08);
+}
+
+function clearArenaUnits() {
+  document.querySelectorAll('.unit, .projectile').forEach(function (node) {
+    node.remove();
+  });
+}
+
 function loadBestSession() {
   try {
-    return localStorage.getItem('lincolnBestSession') || '';
+    const raw = localStorage.getItem('lincoln-best-session');
+    return raw ? JSON.parse(raw) : null;
   } catch (error) {
-    return '';
+    return null;
+  }
+}
+
+function saveBestSession(outcome, enemyTotal) {
+  const score = towerMax.left + towerMax.right + towerMax.king - enemyTotal;
+  const label = outcome + ' - ' + score + ' damage';
+  if (!state.bestSession || score > state.bestSession.score) {
+    state.bestSession = { score: score, label: label };
+    localStorage.setItem('lincoln-best-session', JSON.stringify(state.bestSession));
+    updateBestSessionUi();
   }
 }
 
