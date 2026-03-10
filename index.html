@@ -36,6 +36,36 @@
     </div>
   </div>
 
+  <div class="screen-overlay" id="instructionsOverlay" aria-hidden="true">
+    <div class="overlay-card hero-card instructions-card" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle">
+      <button id="closeInstructionsBtn" class="icon-close-btn" type="button" aria-label="Close instructions">&times;</button>
+      <p class="eyebrow">How to Play</p>
+      <h2 id="instructionsTitle">Battle Instructions</h2>
+      <p class="overlay-lead">Use these tips to learn the flow, then return to the start screen or jump straight into the match.</p>
+      <div class="overlay-grid">
+        <div class="info-chip"><strong>Build elixir</strong><span>Let elixir refill before committing to expensive cards.</span></div>
+        <div class="info-chip"><strong>Choose a lane</strong><span>Pressure left or right depending on which enemy tower is weaker.</span></div>
+        <div class="info-chip"><strong>Mix units</strong><span>Use fast units early and tanks when you can support them.</span></div>
+        <div class="info-chip"><strong>Stay flexible</strong><span>Defend first if your tower is under heavy pressure.</span></div>
+      </div>
+      <div class="how-to-play">
+        <h3>Quick Guide</h3>
+        <ol>
+          <li>Build elixir over time.</li>
+          <li>Select a card from your hand.</li>
+          <li>Deploy to the left or right lane.</li>
+          <li>React to enemy pushes before they reach your towers.</li>
+          <li>Win by dealing more fortress damage before time expires.</li>
+        </ol>
+      </div>
+      <div class="overlay-actions stacked-mobile">
+        <button id="playFromInstructionsBtn">Play Now</button>
+        <button id="backToStartBtn" class="secondary-btn">Back</button>
+      </div>
+      <p class="overlay-footnote">You can also press Escape to close this screen.</p>
+    </div>
+  </div>
+
   <div class="screen-overlay" id="pauseOverlay" aria-hidden="true">
     <div class="overlay-card compact-card">
       <p class="eyebrow">Match Paused</p>
